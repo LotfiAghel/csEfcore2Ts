@@ -70,7 +70,7 @@ namespace SyntaxWalker
         };
         public class TypeDes
         {
-            public string name;
+            public string keyType;
             public string fn;
 
             public bool isResource { get; internal set; }
@@ -165,7 +165,7 @@ namespace SyntaxWalker
             if (fn != null)
                 res.fn = fn;
             if (keyType!=null)
-                res.name = keyType;
+                res.keyType = keyType;
             return res;
         }
         public static IEnumerable<TypeInfo> getBases(TypeDeclarationSyntax class_, Compilation compilation)
@@ -178,27 +178,7 @@ namespace SyntaxWalker
             });
         }
         
-        public static ITypeSymbol getBaseClass(TypeDeclarationSyntax class_, IBlockDespose tt2, SemanticModel sm)
-        {
-
-            if (class_.BaseList != null)
-            {
-                var first = true;
-                foreach (var base_ in class_.BaseList.Types)
-                {
-                    
-                    var rmp2 = sm.GetTypeInfo(base_.Type);
-
-                    if (rmp2.Type.TypeKind == TypeKind.Class)
-                        return rmp2.Type;
-                    else
-                        return null;
-                }
-            }
-            return null;
-
-            
-        }
+        
         public static List<ITypeSymbol> getInterfaces(TypeDeclarationSyntax class_, IBlockDespose tt2, SemanticModel sm)
         {
             var res = new List<ITypeSymbol>();
@@ -233,7 +213,7 @@ namespace SyntaxWalker
             string res = "";
             
 
-            var baseClass = getBaseClass(class_,tt2, sm);
+            var baseClass = class_.getBaseClass( sm);
 
             var interfaces = getInterfaces(class_,tt2, sm);
 
@@ -243,9 +223,39 @@ namespace SyntaxWalker
                 res += $" implements {interfaces.ConvertAll(x=> getTsName(x,sm)).Aggregate((l,r)=>$"{l},{r}")}";
             return res;
         }
-        public static PropertyDeclarationSyntax getPropWithName(TypeDeclarationSyntax class_, string name)
+        public static PropertyDeclarationSyntax getPropWithName(TypeDeclarationSyntax class_, string name, SemanticModel sm)
         {
+            var h = class_.getBaseClass(  sm);
+            var uu=h.GetMembers().Where(x => x.Name == name).FirstOrDefault();
             return class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Identifier.ToString() == name).First();
+        }
+        /*public static ISymbol getPropWithName2(TypeDeclarationSyntax class_, string name, SemanticModel sm)
+        {
+            var res = sm.GetDeclaredSymbol(class_).GetMembers().Where(x => x.Name == name).FirstOrDefault();
+            if (res != null)
+                return res;
+
+            var h = class_.getBaseClass(sm);
+            if (h != null)
+            {
+                return getPropWithName2(h, name, sm);
+                var uu = h.GetMembers().Where(x => x.Name == name).FirstOrDefault();
+                if (uu != null)
+                    return uu;
+            }
+            //var idMemeber = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Identifier.ToString() == name).First();
+           
+            //var tt = sm.GetTypeInfo(idMemeber.Type);
+            //return tt.Type as INamedTypeSymbol;
+        }*/
+        public static ISymbol getPropWithName3(INamedTypeSymbol class_, string name)
+        {
+            var res = class_.GetMembers().Where(x => x.Name == name).FirstOrDefault();
+            if (res != null)
+                return res;
+            if(class_.BaseType!=null)
+                return getPropWithName3(class_.BaseType, name);
+            return null;
         }
         public class St
         {
@@ -257,7 +267,7 @@ namespace SyntaxWalker
         }
         public static Dictionary<string, St> findForgienKeyMen(TypeDeclarationSyntax class_, SemanticModel sm)
         {
-
+            var class_2 = sm.GetDeclaredSymbol(class_);
             var res = new Dictionary<string, St>();
             {
                 var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
@@ -275,10 +285,13 @@ namespace SyntaxWalker
 
                             var rmp2 = sm.GetConstantValue(tz.Expression);
 
-                            var idMemeber = getPropWithName(class_, rmp2.ToString());
+                            //var idMemeber = getPropWithName(class_, rmp2.ToString(),sm);
+                            //idMemeber.Identifier.ToString()
+                            var idMemeber = getPropWithName3(class_2, rmp2.ToString()); 
                             {
-                                var tt = sm.GetTypeInfo(idMemeber.Type);
-                                var type = tt.Type;
+                                //var tt = sm.GetTypeInfo(idMemeber.Type);
+
+                                var type = idMemeber.ContainingType;
                                 ITypeSymbol s = type as INamedTypeSymbol;
                                 if (type.OriginalDefinition.Name == "Nullable")
                                 {
@@ -290,7 +303,7 @@ namespace SyntaxWalker
                                 }
                                 
                                 Console.WriteLine("");
-                                res[idMemeber.Identifier.ToString()] = new St()
+                                res[idMemeber.Name] = new St()
                                 {
                                     enityFildNameName= mem.Identifier.ToString(),
                                     entityType = mem.Type,
@@ -298,21 +311,25 @@ namespace SyntaxWalker
                                     nullable = type.OriginalDefinition.Name == "Nullable"
                                 };
                                 mem.Type.GetNamespace();
-                                var resName = sm.GetTypeInfo(getPropWithName(class_, rmp2.ToString()).Type).Type.ToString();// getPropWithName(class_, rmp2.ToString()).Type.GetFullName();
-                                var memType = sm.GetTypeInfo(mem.Type).Type.ToString(); //sm.GetTypeInfo(mem.Type).GetFullName();
+                                
+
+                                var zresname = getPropWithName3(class_2, rmp2.ToString()).ContainingType;
+                                //var resName = sm.GetTypeInfo(getPropWithName(class_, rmp2.ToString(),sm).Type).Type;// getPropWithName(class_, rmp2.ToString()).Type.GetFullName();
+                                var memType = sm.GetTypeInfo(mem.Type).Type; //sm.GetTypeInfo(mem.Type).GetFullName();
                                 var memType0 = sm.GetTypeInfo(mem.Type).Type;
-                                if (memType=="int" || memType=="string" || memType == "System.Guid"
-                                    || memType == "int?" || memType == "string?" || memType == "System.Guid?"
+                                var memTypeS = memType.ToString();
+                                if (memTypeS == "int" || memTypeS == "string" || memTypeS == "System.Guid"
+                                    || memTypeS == "int?" || memTypeS == "string?" || memTypeS == "System.Guid?"
                                     || memType0.TypeKind == TypeKind.Struct
                                     )
                                 {
                                     var tmp = memType;
-                                    memType = resName;
-                                    resName = tmp;
+                                    memType = zresname;
+                                    zresname = tmp as INamedTypeSymbol ;
                                 }
                                 
                                 
-                                addOrUpdateManager(memType0, resName, null).isResource = true;
+                                addOrUpdateManager(memType, zresname.Name, null).isResource = true;
                             }
 
 
@@ -558,7 +575,7 @@ namespace SyntaxWalker
 
 
             
-            var h = getBaseClass(class_,tt, sm);
+            var h = class_.getBaseClass(sm);
             if(h!=null)
                 addAllNames(h, tt);
             //if(h!= null) 
@@ -756,7 +773,8 @@ namespace SyntaxWalker
                                             {
                                                 if (!managerMap.ContainsKey(tf))
                                                     continue;
-                                                if (managerMap[tf].fn != ff.fn)
+
+                                                if (managerMap[tf].fn!=null && managerMap[tf].fn != ff.fn)
                                                 {
                                                     fwriter.WriteLine($"import {{ {tf.Name} }} from \"Models/{linuxPathStyle(managerMap[tf].fn)}\"");
                                                     if (!pr.Contains(managerMap[tf]))

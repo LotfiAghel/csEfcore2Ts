@@ -18,7 +18,8 @@ namespace SyntaxWalker
         }
         public override string ToString()
         {
-            
+            if (items.Count == 0)
+                return Name+"()";
             return Name+"("+ items.ConvertAll(l => $"{l.Item1}:{l.Item2}").Aggregate((l, r) => $"{l},{r}") +")";
         }
     }
@@ -67,7 +68,8 @@ namespace SyntaxWalker
             WriteLine($"{v}(");
             try
             {
-                WriteLine(list.Aggregate((l, r) => $"{l},{r}"));
+                if(list.Count>0) 
+                    WriteLine(list.Aggregate((l, r) => $"{l},{r}"));
             }
             catch
             {
