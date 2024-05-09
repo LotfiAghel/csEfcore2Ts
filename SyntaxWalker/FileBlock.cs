@@ -27,7 +27,7 @@ namespace SyntaxWalker
         }
         public virtual BlockDespose newNameSpace(string name)
         {
-            return new BlockDespose($"namespace {name}   ", this);
+            return new BlockDespose($"export namespace {name}   ", this);
         }
 
         public string getFileName()
