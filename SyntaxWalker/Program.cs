@@ -484,7 +484,7 @@ namespace SyntaxWalker
         public static void handleEnums(EnumDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
         {
             var sm = compilation.GetSemanticModel(class_.SyntaxTree);
-            var memType0 = sm.GetTypeInfo(class_).Type;
+            var memType0 = sm.GetDeclaredSymbol(class_);
             addOrUpdateManager(memType0, null, tt.getFileName());
             using (var tt2 = tt.newBlock($"export enum {class_.Identifier} "))
             {
@@ -519,7 +519,7 @@ namespace SyntaxWalker
         public static void handleInterface(InterfaceDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
         {
             var sm = compilation.GetSemanticModel(class_.SyntaxTree);
-            var memType0 = sm.GetTypeInfo(class_).Type;
+            var memType0 = sm.GetDeclaredSymbol(class_);
             addOrUpdateManager(memType0, null, tt.getFileName());
             handleType(class_, tt, compilation);
         
@@ -553,14 +553,14 @@ namespace SyntaxWalker
             }*/
             string fullname = class_.GetNamespace();
 
-            var memType0 = sm.GetTypeInfo(class_).Type;
+            var memType0 = sm.GetDeclaredSymbol(class_);
             addOrUpdateManager(memType0, null, tt.getFileName());
 
 
             
             var h = getBaseClass(class_,tt, sm);
-            
-            addAllNames(h, tt);
+            if(h!=null)
+                addAllNames(h, tt);
             //if(h!= null) 
             //    tt.WriteLine($"@Deserialize.inheritSerialization(() => {getTsName(h,sm)})");
             using (var tt2 = tt.newBlock($"export class {GetName(class_)}  {getHeaderClass(class_,tt,sm)} "))
@@ -834,7 +834,7 @@ namespace SyntaxWalker
                                 if (!managerMap.ContainsKey(t))
                                     continue;
                                 if (managerMap[t].isResource)
-                                    fwriter.WriteLine($"import {{ {t}Manager }} from \"Models/managers\"");
+                                    fwriter.WriteLine($"import {{ {t.Name}Manager }} from \"Models/managers\"");
 
                             }
                             fwriter.WriteLine("\n\n");
