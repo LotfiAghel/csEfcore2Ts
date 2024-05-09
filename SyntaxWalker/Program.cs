@@ -157,7 +157,7 @@ namespace SyntaxWalker
         }
 
 
-        private static TypeDes addOrUpdateManager(string type, string keyType,string fn)
+        private static TypeDes addOrUpdateManager(ITypeSymbol type, string keyType,string fn)
         {
             TypeDes res;
             if (!managerMap.TryGetValue(type, out res))
@@ -312,7 +312,7 @@ namespace SyntaxWalker
                                 }
                                 
                                 
-                                addOrUpdateManager(memType, resName, null).isResource = true;
+                                addOrUpdateManager(memType0, resName, null).isResource = true;
                             }
 
 
@@ -483,7 +483,9 @@ namespace SyntaxWalker
         }
         public static void handleEnums(EnumDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
         {
-            addOrUpdateManager(class_.GetFullName(), null, tt.getFileName());
+            var sm = compilation.GetSemanticModel(class_.SyntaxTree);
+            var memType0 = sm.GetTypeInfo(class_).Type;
+            addOrUpdateManager(memType0, null, tt.getFileName());
             using (var tt2 = tt.newBlock($"export enum {class_.Identifier} "))
             {
                 foreach(var mem in class_.Members)
@@ -516,7 +518,9 @@ namespace SyntaxWalker
         }
         public static void handleInterface(InterfaceDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
         {
-            addOrUpdateManager(class_.GetFullName(), null, tt.getFileName());
+            var sm = compilation.GetSemanticModel(class_.SyntaxTree);
+            var memType0 = sm.GetTypeInfo(class_).Type;
+            addOrUpdateManager(memType0, null, tt.getFileName());
             handleType(class_, tt, compilation);
         
         }
@@ -549,9 +553,9 @@ namespace SyntaxWalker
             }*/
             string fullname = class_.GetNamespace();
 
+            var memType0 = sm.GetTypeInfo(class_).Type;
+            addOrUpdateManager(memType0, null, tt.getFileName());
 
-            
-            addOrUpdateManager(class_.GetFullName(), null, tt.getFileName());
 
             
             var h = getBaseClass(class_,tt, sm);
@@ -750,22 +754,22 @@ namespace SyntaxWalker
                                             fwriter.WriteLine("\n\n");
                                             foreach (var tf in ff.usedTypes)
                                             {
-                                                if (!managerMap.ContainsKey(tf.Name))
+                                                if (!managerMap.ContainsKey(tf))
                                                     continue;
-                                                if (managerMap[tf.Name].fn != ff.fn)
+                                                if (managerMap[tf].fn != ff.fn)
                                                 {
-                                                    fwriter.WriteLine($"import {{ {tf.Name} }} from \"Models/{linuxPathStyle(managerMap[tf.Name].fn)}\"");
-                                                    if (!pr.Contains(managerMap[tf.Name]))
-                                                        pr.Add(managerMap[tf.Name]);
+                                                    fwriter.WriteLine($"import {{ {tf.Name} }} from \"Models/{linuxPathStyle(managerMap[tf].fn)}\"");
+                                                    if (!pr.Contains(managerMap[tf]))
+                                                        pr.Add(managerMap[tf    ]);
                                                 }
 
                                             }
                                             fwriter.WriteLine("\n\n");
                                             foreach (var tf in ff.usedTypes)
                                             {
-                                                if (!managerMap.ContainsKey(tf.Name))
+                                                if (!managerMap.ContainsKey(tf))
                                                     continue;
-                                                if (managerMap[tf.Name].isResource)
+                                                if (managerMap[tf].isResource)
                                                     fwriter.WriteLine($"import {{ {tf}Manager }} from \"Models/managers\"");
 
                                             }
@@ -815,11 +819,11 @@ namespace SyntaxWalker
                             
                             foreach (var t in ff.usedTypes)
                             {
-                                if (!managerMap.ContainsKey(t.Name))
+                                if (!managerMap.ContainsKey(t))
                                     continue;
-                                if (managerMap[t.Name].fn != ff.fn)
+                                if (managerMap[t].fn != ff.fn)
                                 {
-                                    fwriter.WriteLine($"import {{ {t} }} from \"Models/{linuxPathStyle(managerMap[t.Name].fn)}\"");
+                                    fwriter.WriteLine($"import {{ {t} }} from \"Models/{linuxPathStyle(managerMap[t].fn)}\"");
                                     //fwriter.WriteImport($"import {{ {t} }} from \"Models/{linuxPathStyle(managerMap[t].fn)}\"");
                                 }
 
@@ -827,9 +831,9 @@ namespace SyntaxWalker
                             fwriter.WriteLine("\n\n");
                             foreach (var t in ff.usedTypes)
                             {
-                                if (!managerMap.ContainsKey(t.Name))
+                                if (!managerMap.ContainsKey(t))
                                     continue;
-                                if (managerMap[t.Name].isResource)
+                                if (managerMap[t].isResource)
                                     fwriter.WriteLine($"import {{ {t}Manager }} from \"Models/managers\"");
 
                             }
