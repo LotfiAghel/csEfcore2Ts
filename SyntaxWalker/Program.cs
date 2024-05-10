@@ -17,6 +17,7 @@ using System.Reflection.Metadata;
 using System.Buffers.Text;
 using System.Text.RegularExpressions;
 using System.Data.SqlTypes;
+using System.Collections;
 
 
 
@@ -70,17 +71,7 @@ namespace SyntaxWalker
             { "DateTimeOffset","Date"},
             { "DateTime","Date"}
         };
-        public class TypeDes
-        {
-            public ITypeSymbol keyType;
-            public TypeInfo type;
-            public string fn;
-            public bool isOld = false;
-            internal List<PropertyDeclarationSyntax> filds;
-
-            public bool isResource { get; internal set; }
-            public bool isHide { get; internal set; } = true;
-        }
+       
         public static Dictionary<ITypeSymbol, TypeDes> managerMap = new() { };
         public static Dictionary<TypeInfo, TypeDes> managerMap2 = new() { };
         public class TsTypeInf
@@ -165,16 +156,20 @@ namespace SyntaxWalker
         }
 
 
-        private static TypeDes addOrUpdateManager(ITypeSymbol type0,TypeInfo type, ITypeSymbol keyType, string fn)
+        private static TypeDes addOrUpdateManager(ITypeSymbol type0,TypeInfo? type=null, ITypeSymbol keyType=null, string fn=null,IEnumerable<ITypeSymbol> used=null)
         {
             TypeDes res;
             if (!managerMap.TryGetValue(type0, out res))
                 managerMap[type0] = res = new TypeDes();
-            managerMap[type0].type = type;
+            if(type!=null)
+                managerMap[type0].type = type.Value;
             if (fn != null)
                 res.fn = fn;
             if (keyType != null)
                 res.keyType = keyType;
+            if (used != null)
+                foreach (var u in used)
+                    res.usedTypes.Add(u);
             return res;
         }
         public static IEnumerable<TypeInfo> getBases(TypeDeclarationSyntax class_, SemanticModel sm)
@@ -198,7 +193,7 @@ namespace SyntaxWalker
                 {
 
                     var rmp2 = sm.GetTypeInfo(base_.Type);
-                    addAllNames(rmp2.Type, tt2);
+                    
                     if (rmp2.Type.TypeKind == TypeKind.Interface)
                         res.Add(rmp2.Type);
 
@@ -211,6 +206,8 @@ namespace SyntaxWalker
         public static string getHeader(TypeDeclarationSyntax class_, IBlockDespose tt2, SemanticModel sm)
         {
             var interfaces = getInterfaces(class_, tt2, sm);
+            var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, null, null, interfaces);
             if (interfaces.Count() > 0)
                 return $" extends {interfaces.ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}")}";
             return "";
@@ -224,7 +221,8 @@ namespace SyntaxWalker
             var baseClass = class_.getBaseClass(sm);
 
             var interfaces = getInterfaces(class_, tt2, sm);
-
+            var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, null, null, interfaces);
             if (baseClass != null)
                 res += $" extends {getTsName(baseClass, sm)}";
             if (interfaces.Count() > 0)
@@ -283,107 +281,8 @@ namespace SyntaxWalker
 
             return null;
         }
-        public class St
-        {
-            //public string fieldName;
-            public string enityFildNameName;
-            public string keyType;
-            public bool nullable = false;
-            public TypeSyntax entityType;
-        }
-        public static Dictionary<string, St> findForgienKeyMen(TypeDeclarationSyntax class_, SemanticModel sm)
-        {
-            var class_2 = sm.GetDeclaredSymbol(class_);
-            var class3 = sm.GetTypeInfo(class_);
-            var res = new Dictionary<string, St>();
-            {
-                var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
-                foreach (var mem in mems)
-                {
-                    var mem2 = mem;
-                    var anot = mem.DescendantNodes().OfType<AttributeSyntax>().ToList();
-
-                    if (anot.Where(x => x.Name.ToString() == "ForeignKey").Any())
-                    {
-                        var z = anot.Where(x => x.Name.ToString() == "ForeignKey").First();
-                        var tz = z.ArgumentList.Arguments.First();
-
-                        {
-
-                            var rmp2 = sm.GetConstantValue(tz.Expression);
-
-                            var idMemeber = getPropWithName(class_, rmp2.ToString(),sm);
-                            //idMemeber.Identifier.ToString()
-                            //var idMemeber = getPropWithName3(class_2, rmp2.ToString());
-                            {
-                                var type = sm.GetTypeInfo(idMemeber.Type).Type;
-
-                                //var type = idMemeber.Type;
-                                
-
-                                Console.WriteLine("");
-                                
-                                mem.Type.GetNamespace();
-
-
-                                
-                                
-                                //var resName = sm.GetTypeInfo(getPropWithName(class_, rmp2.ToString(),sm).Type).Type;// getPropWithName(class_, rmp2.ToString()).Type.GetFullName();
-                                var memType = sm.GetTypeInfo(mem.Type); //sm.GetTypeInfo(mem.Type).GetFullName();
-                                var idType = sm.GetTypeInfo(idMemeber.Type);
-                                var memTypeS = memType.Type.ToString();
-
-                                if (memTypeS == "int" || memTypeS == "string" || memTypeS == "System.Guid"
-                                    || memTypeS == "Guid"
-                                    || memTypeS == "Guid?"
-                                    || memTypeS == "int?" || memTypeS == "string?" || memTypeS == "System.Guid?"
-                                    || memType.Type.TypeKind == TypeKind.Struct
-                                    )
-                                {
-                                    var tmp = memType;
-                                    memType = idType;
-                                    idType = tmp;
-
-                                    var t2 = mem;
-                                    mem2 = idMemeber;
-                                    idMemeber = t2;
-                                }
-                                ITypeSymbol s = idType.Type as INamedTypeSymbol;
-                                if (idType.Type.OriginalDefinition.Name == "Nullable")
-                                {
-
-
-
-                                    s = (s as INamedTypeSymbol).TypeArguments.FirstOrDefault();
-
-                                }
-
-                                res[idMemeber.Identifier.ToString()] = new St()
-                                {
-                                    enityFildNameName = mem2.Identifier.ToString(),
-                                    entityType = mem2.Type,
-                                    keyType = getTsName(s, sm),
-                                    nullable = idType.Type.OriginalDefinition.Name == "Nullable"
-                                };
-                                
-                                addOrUpdateManager(memType.Type,memType, idType.Type, null).isResource = true;
-                            }
-
-
-                        }
-
-                    }
-                }
-            }
-            return res;
-
-
-        }
-        public class A
-        {
-            public SyntaxToken name { get; internal set; }
-            public TypeInfo type { get; internal set; }
-        }
+      
+        
         public static Dictionary<PropertyDeclarationSyntax, PropertyDeclarationSyntax> findForgienKeyMen2(TypeDeclarationSyntax class_, SemanticModel sm)
         {
             var class_2 = sm.GetDeclaredSymbol(class_);
@@ -534,7 +433,8 @@ namespace SyntaxWalker
                     foreach(var ta in gns.TypeArgumentList.Arguments)
                     {
                         var s=sm.GetTypeInfo(ta);
-                        addAllNames(s.Type, tt2);
+                        //addAllNames(s.Type, tt2);
+                        addOrUpdateManager(sm.GetDeclaredSymbol(class_), null, null, null, new List<ITypeSymbol>() { s.Type });
                         Console.WriteLine(ta);
                     }
                 }
@@ -556,7 +456,8 @@ namespace SyntaxWalker
             {
                 var rmp2 = sm.GetTypeInfo(f.Key.Type);
                 var rmp22 = sm.GetTypeInfo(f.Value.Type);
-                addAllNames(rmp22.Type, tt2);
+                //addAllNames(rmp22.Type, tt2);
+                addOrUpdateManager(sm.GetDeclaredSymbol(class_), null, null, null, new List<ITypeSymbol>() { rmp22.Type });
                 var nullable = rmp2.Type.OriginalDefinition.Name == "Nullable";
                 var nullableS = nullable ? "!" : "";
                 using (var wr3 = tt2.newFunction($"get{f.Value.Identifier.ToString()}",null,$"Promise<{rmp22.Type.Name}>",true))
@@ -585,7 +486,9 @@ namespace SyntaxWalker
                             {
 
                                 var rmp3 = sm.GetTypeInfo(nd2);
-                                addAllNames(rmp3.Type, wr2);
+                                //addAllNames(rmp3.Type, wr2);
+                                addOrUpdateManager(sm.GetDeclaredSymbol(class_), null, null, null, new List<ITypeSymbol>() { rmp3.Type });
+
                                 wr2.WriteLine("//this code must be handle catch");
                                 var url = (class_.Parent as NamespaceDeclarationSyntax).Name + "." + class_.Identifier;
                                 url = url.Replace(".", "__");
@@ -605,7 +508,7 @@ namespace SyntaxWalker
 
                     //Console.WriteLine(mem.Type);
                     //Console.WriteLine(mem.Identifier.ToString());
-                    addAllNames(rmp2.Type, tt2);
+                    addOrUpdateManager(sm.GetDeclaredSymbol(class_), null, null, null, new List<ITypeSymbol>() { rmp2.Type });
 
                     
 
@@ -712,7 +615,9 @@ namespace SyntaxWalker
             var superClassSymbol = class_.getBaseClass(sm);
             var hh = class_.GetBaseClasses(sm);
             if (superClassSymbol != null)
-                addAllNames(superClassSymbol, tt);
+                addOrUpdateManager(sm.GetDeclaredSymbol(class_), used:new List<ITypeSymbol>() { superClassSymbol });
+
+
             //if(h!= null) 
             //    tt.WriteLine($"@Deserialize.inheritSerialization(() => {getTsName(h,sm)})");
             using (var tt2 = tt.newBlock($"export class {GetName(class_)}  {getHeaderClass(class_, tt, sm)} "))
