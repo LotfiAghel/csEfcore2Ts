@@ -1,9 +1,24 @@
 ﻿using Microsoft.CodeAnalysis;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Principal;
 using System.Xml.Linq;
 //using Microsoft.CodeAnalysis.Common;
 namespace SyntaxWalker
 {
+    public class LineItem
+    {
+
+    }
+    public class Line: LineItem
+    {
+        public string txt;
+        public override string ToString()
+        {
+            return txt;
+        }
+    }
     public class FileBlock : IBlockDespose
     {
         //public IBaseWriter writer;
@@ -38,6 +53,20 @@ namespace SyntaxWalker
         public void addUsedType(ITypeSymbol type)
         {
             usedTypes.Add(type);    
+        }
+
+        public BlockDespose newFunction(string name, List<Tuple<string, string>> args, string returnType, bool isAsync = false)
+        {
+            var asyncS = isAsync ? "async" : "";
+            var argsS = "";
+            if (args != null && args.Count() > 0)
+            {
+
+
+                argsS = args.ToList().ConvertAll(x => $"{x.Item1}:{x.Item2}").Aggregate((l, r) => $"{l},{r}");
+
+            }
+            return newBlock($"{(isAsync ? "async" : "")} {name}({argsS}):{returnType}");
         }
     }
     

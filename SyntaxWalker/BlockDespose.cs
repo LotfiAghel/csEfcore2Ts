@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml.Linq;
 using static SyntaxWalker.Program;
 //using Microsoft.CodeAnalysis.Common;
 namespace SyntaxWalker
@@ -58,29 +59,32 @@ namespace SyntaxWalker
                 parnet.WriteLine(text);
             }
 
-        public FunctionCallHead newConstructor()
+        public BlockDespose newConstructor(List<Tuple<string, string>> args)
         {
-            return new FunctionCallHead() { Name= "constructor" };
+            
+            var argsS = args.ToList().ConvertAll(x => $"{x.Item1}:{x.Item2}").agregate();
+            return newBlock($"constructor(args:{{ {argsS} }})");
+
+            //return newFunction( "constructor" , args,null,false);
         }
 
         public void functionCall(string v, List<string> list)
         {
-            WriteLine($"{v}(");
-            try
-            {
-                if(list.Count>0) 
-                    WriteLine(list.Aggregate((l, r) => $"{l},{r}"));
-            }
-            catch
-            {
-
-            }
-            WriteLine(");");
+            WriteLine($"{v}({list.agregate()})");
+            
         }
 
         internal void SuperCunstrocotrCall(List<string> list)
         {
             functionCall("super", list);
+        }
+
+        public BlockDespose newFunction(string name, List<Tuple<string, string>> args, string returnType, bool isAsync = false)
+        {
+            var asyncS = isAsync ? "async" : "";
+            var argsS = args?.ToList().ConvertAll(x => $"{x.Item1}:{x.Item2}").agregate();
+            return newBlock($"{(isAsync ? "async" : "")} {name}({argsS}){(returnType!=null? $":{returnType}" : "")}");
+            
         }
     }
     
