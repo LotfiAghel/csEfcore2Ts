@@ -2,50 +2,56 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Security.Principal;
 using System.Xml.Linq;
+using static System.Net.Mime.MediaTypeNames;
 //using Microsoft.CodeAnalysis.Common;
 namespace SyntaxWalker
 {
-    public class LineItem
+   
+    public class ClassBlock : BlockDespose
     {
+        
+        
+        public HashSet<ITypeSymbol> usedTypes = new();
 
-    }
-    public class Line: LineItem
-    {
-        public string txt;
-        public override string ToString()
+        public ClassBlock(string name, BlockDespose parnet,int tab) : base(name, parnet, tab )
         {
-            return txt;
+
         }
+
+       
     }
-    public class FileBlock : IBlockDespose
+    public class FileBlock : BlockDespose
     {
         //public IBaseWriter writer;
         public string fn;
-        public int tab = 0;
-        public List<string> lines = new() { ""};
-        public HashSet<ITypeSymbol> usedTypes = new();
+        
         public List<string> classes=new();
+
+        public FileBlock(string name, BlockDespose parnet, int tab) : base(name, parnet, tab )
+        {
+        }
 
         public void WriteLine(string text)
         {
-            for (int i = 0; i < tab; ++i)
-                lines[lines.Count-1]+="\t";
-            lines[lines.Count - 1] += text;
-            lines.Add("");
+            var line = new BlockDespose(text,this, tab + 1);
+            line.tab = tab+1;
+            lines.Add(line);
+            
         }
         public BlockDespose newBlock(string text)
         {
 
-            return new BlockDespose(text, this);
+            return new BlockDespose(text, this, tab + 1);
         }
         public virtual BlockDespose newNameSpace(string name)
         {
-            return new BlockDespose($"export namespace {name}   ", this);
+            return new BlockDespose($"export namespace {name}   ", this,tab+1);
         }
 
-        public string getFileName()
+        public override string getFileName()
         {
             return fn;
         }
@@ -68,6 +74,13 @@ namespace SyntaxWalker
             }
             return newBlock($"{(isAsync ? "async" : "")} {name}({argsS}):{returnType}");
         }
+
+        public ClassBlock newClass(string text)
+        {
+            var z=new ClassBlock(text, this, tab + 1) ;
+            lines.Add(z);
+            return z;
+        }
     }
-    
+  
 }
