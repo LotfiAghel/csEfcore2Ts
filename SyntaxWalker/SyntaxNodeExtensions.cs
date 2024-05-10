@@ -51,6 +51,8 @@ public static class SyntaxNodeExtensions
         var returnValue = new List<INamedTypeSymbol>();
         while (classSymbol.BaseType != null)
         {
+            if (classSymbol.BaseType.Name == "Object")
+                break;
             returnValue.Add(classSymbol.BaseType);
             //if (classSymbol.Interfaces != null)
             //    returnValue.AddRange(classSymbol.Interfaces);
