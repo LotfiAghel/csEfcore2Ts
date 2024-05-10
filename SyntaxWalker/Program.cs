@@ -170,12 +170,12 @@ namespace SyntaxWalker
                 res.keyType = keyType;
             return res;
         }
-        public static IEnumerable<TypeInfo> getBases(TypeDeclarationSyntax class_, Compilation compilation)
+        public static IEnumerable<TypeInfo> getBases(TypeDeclarationSyntax class_, SemanticModel sm)
         {
 
             return class_.BaseList?.Types.Select(x =>
             { //x.ToString()
-                return compilation.GetSemanticModel(class_.SyntaxTree).GetTypeInfo(x.Type);
+                return sm.GetTypeInfo(x.Type);
                 //return z.Type;
             });
         }
@@ -201,9 +201,8 @@ namespace SyntaxWalker
 
 
         }
-        public static string getHeader(TypeDeclarationSyntax class_, IBlockDespose tt2, Compilation compilation)
+        public static string getHeader(TypeDeclarationSyntax class_, IBlockDespose tt2, SemanticModel sm)
         {
-            var sm = compilation.GetSemanticModel(class_.SyntaxTree);
             var interfaces = getInterfaces(class_, tt2, sm);
             if (interfaces.Count() > 0)
                 return $" extends {interfaces.ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}")}";
@@ -378,11 +377,10 @@ namespace SyntaxWalker
             public SyntaxToken name { get; internal set; }
             public TypeInfo type { get; internal set; }
         }
-        public static List<A> handleTypeMemeber(TypeDeclarationSyntax class_, IBlockDespose tt2, Compilation compilation, bool isClass)
+        public static List<A> handleTypeMemeber(TypeDeclarationSyntax class_, IBlockDespose tt2, SemanticModel sm, bool isClass)
         {
             List<A> res = new List<A>();
 
-            var sm = compilation.GetSemanticModel(class_.SyntaxTree);
             var frs = findForgienKeyMen(class_, sm);
             {
                 var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
@@ -427,7 +425,7 @@ namespace SyntaxWalker
 
                         //if (tz.ChildNodes().FirstOrDefault() is InvocationExpressionSyntax ine)
                         {
-                            var rmp3 = compilation.GetSemanticModel(class_.SyntaxTree).GetConstantValue(tz.Expression);
+                            var rmp3 = sm.GetConstantValue(tz.Expression);
                             //addOrUpdateManager(mem.Type.ToString(), getPropWithName(class_, rmp3.ToString()).Type.ToString(), null).isResource = true;
                             addAllNames(rmp2.Type, tt2);
                         }
@@ -521,22 +519,22 @@ namespace SyntaxWalker
         }
 
 
-        public static void handleType(TypeDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
+        public static void handleType(TypeDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
         {
 
-            //var rmp2 = compilation.GetSemanticModel(class_.SyntaxTree).GetTypeInfo(class_);
-            //var ttdf=rmp2.Type.BaseType;
-            using (var tt2 = tt.newBlock($"export interface {GetName(class_)} {getHeader(class_, tt, compilation)} "))
+
+            
+            using (var tt2 = tt.newBlock($"export interface {GetName(class_)} {getHeader(class_, tt, sm)} "))
             {
                 var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
-                handleTypeMemeber(class_, tt2, compilation, false);
+                handleTypeMemeber(class_, tt2, sm, false);
             }
 
         }
-        public static void handleEnums(EnumDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
+        public static void handleEnums(EnumDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
         {
-            var sm = compilation.GetSemanticModel(class_.SyntaxTree);
-            var memType0 = sm.GetDeclaredSymbol(class_);
+
+            var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
             addOrUpdateManager(memType0, null, tt.getFileName());
             using (var tt2 = tt.newBlock($"export enum {class_.Identifier} "))
             {
@@ -548,7 +546,7 @@ namespace SyntaxWalker
                     var v = mem.DescendantNodes().OfType<EqualsValueClauseSyntax>().FirstOrDefault();
                     if (v != null)
                     {
-                        var rmp2 = compilation.GetSemanticModel(class_.SyntaxTree).GetConstantValue(v.Value);
+                        var rmp2 = sm.GetConstantValue(v.Value);
 
 
                         //v.DescendantNodes().OfType<LiteralExpressionSyntax>();
@@ -568,12 +566,12 @@ namespace SyntaxWalker
 
 
         }
-        public static void handleInterface(InterfaceDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
+        public static void handleInterface(InterfaceDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
         {
-            var sm = compilation.GetSemanticModel(class_.SyntaxTree);
-            var memType0 = sm.GetDeclaredSymbol(class_);
+            var memType0 = sm.GetTypeInfo(class_);// sm.GetDeclaredSymbol(class_);
             addOrUpdateManager(memType0, null, tt.getFileName());
-            handleType(class_, tt, compilation);
+
+            handleType(class_, tt, sm);
 
         }
         public static IEnumerable<IPropertySymbol> getProps(ITypeSymbol h)
@@ -589,9 +587,8 @@ namespace SyntaxWalker
                 res = $"<{class_.TypeParameterList.ChildNodes().ToList().ConvertAll(x => x.ToString()).Aggregate((l, r) => $"{l},{r}")}>";
             return $"{class_.Identifier.ToString()}{res}";
         }
-        public static void handleClass(ClassDeclarationSyntax class_, IBlockDespose tt, Compilation compilation)
+        public static void handleClass(ClassDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
         {
-            var sm = compilation.GetSemanticModel(class_.SyntaxTree);
             //var type=class_.TypeParameterList
             /*if (type.Type is INamedTypeSymbol s2 && s2.TypeArguments != null && s2.TypeArguments.Count() > 0)
             {
@@ -618,7 +615,7 @@ namespace SyntaxWalker
             using (var tt2 = tt.newBlock($"export class {GetName(class_)}  {getHeaderClass(class_, tt, sm)} "))
             {
                 var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
-                var res = handleTypeMemeber(class_, tt2, compilation, true);
+                var res = handleTypeMemeber(class_, tt2, sm, true);
 
 
                 var hed = tt2.newConstructor();
@@ -687,13 +684,23 @@ namespace SyntaxWalker
                 var solution = await workspace.OpenSolutionAsync(prjfn);
                 //var solution = await workspace.OpenSolutionAsync("D:\\programing\\cs\\TestForAnalys\\ConsoleApp1\\ConsoleApp1.sln");// D:\\programing\\trade\\StockSharp\\StockSharp.sln");
                 var comp = new Dictionary<Project, Compilation>();
+                var smC = new Dictionary<SyntaxTree, SemanticModel>();
+                var rootC = new Dictionary<SyntaxTree, CompilationUnitSyntax>();
+                
                 foreach (var project in solution.Projects)
                 {
                     //if (project.Name != "old_Models" && project.Name != "ViewGeneratorBase" && project.Name != "Models" && project.Name != "BaseModels")
                     //    continue;
                     var compilation = await project.GetCompilationAsync();
                     comp[project] = compilation;
-                }
+                    foreach (var tree in compilation.SyntaxTrees)
+                    {
+                        CompilationUnitSyntax root = tree.GetCompilationUnitRoot();
+                        rootC[tree] = root;
+                        SemanticModel model = compilation.GetSemanticModel(tree);
+                        smC[tree] = model;
+                    }
+                    }
                 for (int ji = 0; ji < 100; ++ji)
                     try
                     {
@@ -707,8 +714,9 @@ namespace SyntaxWalker
                             var compilation = comp[project];// await project.GetCompilationAsync();
                             foreach (var tree in compilation.SyntaxTrees)
                             {
-                                CompilationUnitSyntax root = tree.GetCompilationUnitRoot();
-                                SemanticModel model = compilation.GetSemanticModel(tree);
+                                CompilationUnitSyntax root = rootC[tree];// tree.GetCompilationUnitRoot();
+                                SemanticModel model = smC[tree];// compilation.GetSemanticModel(tree);
+                                 
                                 // </Snippet2>
 
                                 // <Snippet6>
@@ -737,9 +745,10 @@ namespace SyntaxWalker
                                             foreach (var interface_ in enums)
                                                 try
                                                 {
+                                                    
                                                     handleEnums(interface_,
                                                                 wr,
-                                                                compilation);
+                                                                model);
                                                 }
                                                 catch
                                                 {
@@ -753,7 +762,7 @@ namespace SyntaxWalker
                                                 {
                                                     handleInterface(interface_,
                                                                 wr,
-                                                                compilation);
+                                                                model);
                                                 }
                                                 catch
                                                 {
@@ -766,10 +775,9 @@ namespace SyntaxWalker
                                                 {
                                                     // wr.WriteLine("Deserialize.RuntimeTypingEnable();");
 
-
                                                     handleClass(class_,
                                                                 wr,
-                                                                compilation);
+                                                                model);
                                                     //wr.WriteLine($"Deserialize.RuntimeTypingSetTypeString({GetName(class_)}, \"{GetName(class_)}\");");
 
 
@@ -802,8 +810,8 @@ namespace SyntaxWalker
                             for(int i=0; i<3;++i)
                             foreach (var tree in compilation.SyntaxTrees)
                             {
-                                CompilationUnitSyntax root = tree.GetCompilationUnitRoot();
-                                SemanticModel model = compilation.GetSemanticModel(tree);
+                                CompilationUnitSyntax root = rootC[tree];//tree.GetCompilationUnitRoot();
+                                SemanticModel model = smC[tree];//compilation.GetSemanticModel(tree);
                                 var nameSpaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
 
                                 foreach (var namespace_ in nameSpaces)
@@ -1007,132 +1015,5 @@ namespace SyntaxWalker
             return Char.ToLowerInvariant(name[0]) + name.Substring(1);
 
         }
-
-        static async Task Main2(string[] args)
-        {
-
-            var visualStudioInstances = MSBuildLocator.QueryVisualStudioInstances().ToArray();
-            var instance = visualStudioInstances.Length == 1
-                // If there is only one instance of MSBuild on this machine, set that as the one to use.
-                ? visualStudioInstances[0]
-                // Handle selecting the version of MSBuild you want to use.
-                : SelectVisualStudioInstance(visualStudioInstances);
-
-            Console.WriteLine($"Using MSBuild at '{instance.MSBuildPath}' to load projects.");
-
-            // NOTE: Be sure to register an instance with the MSBuildLocator 
-            //       before calling MSBuildWorkspace.Create()
-            //       otherwise, MSBuildWorkspace won't MEF compose.
-            MSBuildLocator.RegisterInstance(instance);
-
-            var map = new HashSet<string>();
-            using (var workspace = MSBuildWorkspace.Create())
-            {
-
-
-                //var solution = await workspace.OpenSolutionAsync("D:\\programing\\trade\\StockSharp\\StockSharp.sln");
-                var solution = await workspace.OpenSolutionAsync("D:\\programing\\TestHelperTotal\\testhelper\\EnglishToefl.sln");
-                //var solution = await workspace.OpenSolutionAsync("D:\\programing\\cs\\TestForAnalys\\ConsoleApp1\\ConsoleApp1.sln");// D:\\programing\\trade\\StockSharp\\StockSharp.sln");
-
-                foreach (var project in solution.Projects)
-                {
-                    if (project.Name != "Models")
-                        continue;
-                    var compilation = await project.GetCompilationAsync();
-                    foreach (var tree in compilation.SyntaxTrees)
-                    {
-                        CompilationUnitSyntax root = tree.GetCompilationUnitRoot();
-                        SemanticModel model = compilation.GetSemanticModel(tree);
-                        // </Snippet2>
-
-                        // <Snippet6>
-                        /*string s = root.FilePath;
-                        if (!s.Contains("Models\\Models"))
-                            continue;/**/
-
-                        var wr = new FileBlock();
-                        var nameSpaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
-
-                        foreach (var namespace_ in nameSpaces)
-                        {
-                            var tt = wr.newNameSpace(namespace_.Name.ToString());
-                            var classes = namespace_.DescendantNodes().OfType<ClassDeclarationSyntax>();
-                            try
-                            {
-                                foreach (var class_ in classes)
-                                {
-                                    using (wr.newBlock($"class {class_.Identifier}  bases "))
-                                    {
-                                        var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
-                                        //var bases=class_.BaseList;
-                                        //var mems = class_.DescendantNodes().OfType<BaseListSyntax>().ToList();
-                                        foreach (var mem in mems)
-                                        {
-
-                                            var anot = mem.DescendantNodes().OfType<AttributeSyntax>().ToList();
-                                            if (mem.Type is GenericNameSyntax genericNameSyntax)
-                                            {
-                                                var nd = genericNameSyntax.ChildNodes();
-                                                if (genericNameSyntax.Identifier.ToString() == "ICollection")
-                                                {
-                                                    var nd2 = genericNameSyntax.TypeArgumentList.Arguments.ToList()[0];
-                                                    using (wr.newBlock($"get{mem.Identifier.ToString()}():{nd2}"))
-                                                    {
-                                                        wr.WriteLine("//this code must be handle catch");
-
-                                                    }
-
-                                                }
-                                                continue;
-                                            }
-                                            if (anot.Where(x => x.Name.ToString() == "JsonIgnore").Any())
-                                                continue;
-                                            //Console.WriteLine(mem.Type);
-                                            //Console.WriteLine(mem.Identifier.ToString());
-                                            wr.WriteLine($"{toCamel(mem.Identifier.ToString())} : {getTsName(mem.Type, null)} ;");
-                                        }
-                                    }
-
-                                }
-                            }
-                            catch
-                            {
-
-                            }
-                        }
-
-                        var collector = new GenerateTs()
-                        {
-                            compilation = compilation,
-                            model = model,
-                            //filePath=root.FilePath
-                        };
-
-                        //collector.Visit(root);
-                        foreach (var directive in collector.Usings)
-                        {
-                            map.Add(directive.ToString());
-
-                        }
-                    }
-
-
-                }
-
-
-            }
-
-            foreach (var directive in map)
-            {
-
-                WriteLine($" public static const string {directive}=nameof({directive});");
-            }
-
-
-
-            // <Snippet2>
-
-            // </Snippet6>
-        }
-    }
+}
 }
