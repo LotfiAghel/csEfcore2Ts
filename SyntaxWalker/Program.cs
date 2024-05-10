@@ -620,7 +620,7 @@ namespace SyntaxWalker
 
             //if(h!= null) 
             //    tt.WriteLine($"@Deserialize.inheritSerialization(() => {getTsName(h,sm)})");
-            using (var tt2 = tt.newBlock($"export class {GetName(class_)}  {getHeaderClass(class_, tt, sm)} "))
+            using (var tt2 = tt.newClass($"export class {GetName(class_)}  {getHeaderClass(class_, tt, sm)} "))
             {
                 //var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
                 var res = handleTypeMemeber(class_, tt2, sm, true);
@@ -764,7 +764,7 @@ namespace SyntaxWalker
                         SemanticModel model = compilation.GetSemanticModel(tree);
                         smC[tree] = model;
                     }
-                    }
+                }
                 for (int ji = 0; ji < 100; ++ji)
                     try
                     {
@@ -795,7 +795,7 @@ namespace SyntaxWalker
                                 //using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\{fn2}.ts"))
                                 {
 
-                                    var wr = new FileBlock() { fn = fn2 };
+                                    var wr = new FileBlock(null,null,0) { fn = fn2 };
                                     fns.Add(wr);
 
                                     var nameSpaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
