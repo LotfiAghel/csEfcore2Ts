@@ -18,6 +18,7 @@ using System.Buffers.Text;
 using System.Text.RegularExpressions;
 
 
+
 //using Microsoft.CodeAnalysis.Common;
 namespace SyntaxWalker
 {
@@ -72,7 +73,7 @@ namespace SyntaxWalker
         {
             public ITypeSymbol keyType;
             public string fn;
-
+            public bool isOld = false;
             public bool isResource { get; internal set; }
         }
         public static Dictionary<ITypeSymbol, TypeDes> managerMap = new() { };
@@ -358,6 +359,7 @@ namespace SyntaxWalker
                                     keyType = getTsName(s, sm),
                                     nullable = idType.OriginalDefinition.Name == "Nullable"
                                 };
+                                
                                 addOrUpdateManager(memType, idType, null).isResource = true;
                             }
 
@@ -684,6 +686,14 @@ namespace SyntaxWalker
                 //var solution = await workspace.OpenSolutionAsync("D:\\programing\\trade\\StockSharp\\StockSharp.sln");
                 var solution = await workspace.OpenSolutionAsync(prjfn);
                 //var solution = await workspace.OpenSolutionAsync("D:\\programing\\cs\\TestForAnalys\\ConsoleApp1\\ConsoleApp1.sln");// D:\\programing\\trade\\StockSharp\\StockSharp.sln");
+                var comp = new Dictionary<Project, Compilation>();
+                foreach (var project in solution.Projects)
+                {
+                    //if (project.Name != "old_Models" && project.Name != "ViewGeneratorBase" && project.Name != "Models" && project.Name != "BaseModels")
+                    //    continue;
+                    var compilation = await project.GetCompilationAsync();
+                    comp[project] = compilation;
+                }
                 for (int ji = 0; ji < 100; ++ji)
                     try
                     {
@@ -694,7 +704,7 @@ namespace SyntaxWalker
                         {
                             if (project.Name != "old_Models" && project.Name != "ViewGeneratorBase" && project.Name != "Models" && project.Name != "BaseModels")
                                 continue;
-                            var compilation = await project.GetCompilationAsync();
+                            var compilation = comp[project];// await project.GetCompilationAsync();
                             foreach (var tree in compilation.SyntaxTrees)
                             {
                                 CompilationUnitSyntax root = tree.GetCompilationUnitRoot();
@@ -720,7 +730,8 @@ namespace SyntaxWalker
 
                                     foreach (var namespace_ in nameSpaces)
                                     {
-                                        using (var tt = wr.newNameSpace(namespace_.Name.ToString()))
+                                        var tt = wr;
+                                        //using (var tt = wr.newNameSpace(namespace_.Name.ToString()))
                                         {
                                             var enums = namespace_.DescendantNodes().OfType<EnumDeclarationSyntax>();
                                             foreach (var interface_ in enums)
@@ -784,6 +795,45 @@ namespace SyntaxWalker
 
                         }
 
+
+                        {
+                            var project=solution.Projects.First(x => x.Name == "Data");
+                            var compilation = comp[project];// await project.GetCompilationAsync();
+                            for(int i=0; i<3;++i)
+                            foreach (var tree in compilation.SyntaxTrees)
+                            {
+                                CompilationUnitSyntax root = tree.GetCompilationUnitRoot();
+                                SemanticModel model = compilation.GetSemanticModel(tree);
+                                var nameSpaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
+
+                                foreach (var namespace_ in nameSpaces)
+                                {
+                                    var DBcontext = namespace_.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(x => x.Identifier.ToString() == "DBContext");
+                                    //var DBcontext = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First(x => x.getBaseClass(model2).Name == "DbContext");
+                                    if (DBcontext == null)
+                                        continue;
+                                    var props = DBcontext.DescendantNodes().OfType<PropertyDeclarationSyntax>().Where(x=> x.Type.Kind()==SyntaxKind.GenericName
+                                    && (x.Type as GenericNameSyntax).Identifier.ToString()=="DbSet").Select(x=>x.Type).OfType<GenericNameSyntax>();
+
+                                    foreach(var pr3 in props)
+                                    {
+                                            var nd2 = pr3.TypeArgumentList.Arguments.ToList()[0];
+                                            Console.WriteLine("dbset");
+                                            var type=model.GetTypeInfo(nd2);
+                                            if (managerMap.ContainsKey(type.Type)) try
+                                                {
+                                                    managerMap[type.Type].isResource = true;
+                                                }
+                                                catch
+                                                {
+
+                                                }
+                                    }
+
+
+                                }
+                            }
+                        }
                         var pr = managerMap.Values.ToList();
                         for (int ti = 0; ti < pr.Count(); ++ti)
                             try
@@ -824,7 +874,10 @@ namespace SyntaxWalker
                                                     if (!managerMap.ContainsKey(tf))
                                                         continue;
                                                     if (managerMap[tf].isResource)
-                                                        fwriter.WriteLine($"import {{ {tf}Manager }} from \"Models/managers\"");
+                                                        if(managerMap[tf].isOld)
+                                                            fwriter.WriteLine($"import {{ {tf.Name}Manager }} from \"Models/oldManagers\"");
+                                                        else
+                                                            fwriter.WriteLine($"import {{ {tf.Name}Manager }} from \"Models/managers\"");
 
                                                 }
                                                 fwriter.WriteLine("\n\n");
@@ -845,11 +898,51 @@ namespace SyntaxWalker
 
                             }
                             catch { }
+                        using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\oldManagers.ts"))
+                        {
+                            fwriter.WriteLine("import { Guid, Forg,httpGettr } from \"./base\";");
+                            fwriter.WriteLine("import { IEntityManager,EntityManager } from \"./baseManagers\";");
+                            fwriter.WriteLine("\n\n");
+                            foreach (var t in managerMap)
+                                if (t.Value.isResource && t.Value.fn.StartsWith("old_testhelper"))
+                                {
+                                    fwriter.WriteLine($"import {{ {t.Key.Name} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
+                                }
+
+
+                            fwriter.WriteLine("\n\n");
+                            foreach (var t in managerMap)
+                                if (t.Value.isResource && t.Value.fn.StartsWith("old_testhelper"))
+                                {
+                                    fwriter.WriteLine($"export var {t.Key.Name}Manager=new EntityManager<{t.Key.Name},Number>(\"{t.Key}\");");
+                                }
+                        }
+                        using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\managers.ts"))
+                        {
+                            fwriter.WriteLine("import { Guid, Forg,httpGettr } from \"./base\";");
+                            fwriter.WriteLine("import { IEntityManager,EntityManager } from \"./baseManagers\";");
+                            fwriter.WriteLine("\n\n");
+                            foreach (var t in managerMap)
+                                if (t.Value.isResource && t.Value.fn.StartsWith("Models"))
+                                {
+                                    fwriter.WriteLine($"import {{ {t.Key.Name} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
+                                }
+
+
+                            fwriter.WriteLine("\n\n");
+                            foreach (var t in managerMap)
+                                if (t.Value.isResource && t.Value.fn.StartsWith("Models"))
+                                {
+                                    fwriter.WriteLine($"export var {t.Key.Name}Manager=new EntityManager<{t.Key.Name},Number>(\"{t.Key}\");");
+                                }
+                        }
+
                     }
                     catch (Exception e)
                     {
 
                     }
+
             }
             var pw = new ProjectWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\", "ts");
             for (int i = 0; i < 100; ++i)
@@ -900,25 +993,7 @@ namespace SyntaxWalker
                             fwriter.Flush();
                         }
                     }
-            }
-            using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\managers.ts"))
-            {
-                fwriter.WriteLine("import { Guid, Forg,httpGettr } from \"./base\";");
-                fwriter.WriteLine("import { IEntityManager,EntityManager } from \"./baseManagers\";");
-                fwriter.WriteLine("\n\n");
-                foreach (var t in managerMap)
-                    if (t.Value.isResource)
-                    {
-                        fwriter.WriteLine($"import {{ {t.Key} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
-                    }
-
-
-                fwriter.WriteLine("\n\n");
-                foreach (var t in managerMap)
-                    if (t.Value.isResource)
-                    {
-                        fwriter.WriteLine($"export var {t.Key}Manager=new EntityManager<{t.Key},Number>(\"{t.Key}\");");
-                    }
+           
             }
 
         }
