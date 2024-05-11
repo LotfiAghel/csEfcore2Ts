@@ -166,7 +166,23 @@ namespace SyntaxWalker
             foreach (var zz in t.usedTypes)
                 setIsHideFalse(zz, mark);
         }
-        private static TypeDes addOrUpdateManager(ITypeSymbol type0, TypeInfo? type = null, ITypeSymbol keyType = null, string fn = null, ClassBlock block = null, IEnumerable<ITypeSymbol> used = null)
+        private static void setIsHideFalseForDerivedClass(ITypeSymbol z)
+        {
+            foreach(var e in managerMap)
+            {
+                if (e.Value.syntax == null)
+                    continue;
+                var bases = e.Value.syntax.GetBaseClasses(e.Value.sm);
+                if (bases.Contains(z))
+                {
+                    setIsHideFalse(e.Key, new ());
+                    e.Value.isHide = false;
+                }
+            }
+        }
+        private static TypeDes addOrUpdateManager(ITypeSymbol type0, TypeInfo? type = null, ITypeSymbol keyType = null, string fn = null, ClassBlock block = null, IEnumerable<ITypeSymbol> used = null,
+            TypeDeclarationSyntax syntax=null,
+            SemanticModel sm=null)
         {
             
             TypeDes res;
@@ -178,6 +194,10 @@ namespace SyntaxWalker
                 res.fn = fn;
             if (block != null)
                 res.block = block;
+            if (syntax != null)
+                res.syntax = syntax;
+            if (sm != null)
+                res.sm = sm;
             if (keyType != null)
             {
                 res.keyType = keyType;
@@ -236,7 +256,7 @@ namespace SyntaxWalker
             var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
             var bases=class_.GetBaseClasses(sm);
             var baseId=bases.Where(x => x.GetMembers().Any(x => x.Name == "id")).FirstOrDefault();
-            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces);
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces,syntax: class_, sm: sm);
             if (interfaces.Count() > 0)
                 return $" extends {interfaces.ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}")}";
             return "";
@@ -432,6 +452,7 @@ namespace SyntaxWalker
                 foreach (var mem in mems)
                 {
                     var anot = mem.DescendantNodes().OfType<AttributeSyntax>().ToList();
+                    //if(mem.is==)
                     if (anot.Where(x => x.Name.ToString() == "JsonIgnore").Any())
                         continue;
                     if (cols.Contains(mem))
@@ -440,6 +461,7 @@ namespace SyntaxWalker
                         continue;
                     if (frs.Keys.Where(x => x == mem).Any())
                         continue;
+                    
                     res.Add(mem);
                 }
             }
@@ -525,12 +547,12 @@ namespace SyntaxWalker
                                 //addAllNames(rmp3.Type, wr2);
                                 addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: new List<ITypeSymbol>() { rmp3.Type });
 
-                                wr2.WriteLine("//this code must be handle catch");
+
                                 var url = (class_.Parent as NamespaceDeclarationSyntax).Name + "." + class_.Identifier;
                                 url = url.Replace(".", "__");
 
-                                wr2.WriteLine($" var ar =await httpGettr.Get<{nd2}>(\"v1/generico/{url}/\"+this.id+\"/{mem.Identifier.ToString()}\")!;");
-                                wr2.WriteLine($" // TODO {nd2}Manager.update(ar);");
+                                wr2.WriteLine($" var ar =await context.{nd2}Manager.getSubTable(\"v1/generic/{url}/\"+this.id+\"/{mem.Identifier.ToString()}\")!;");
+
                                 wr2.WriteLine($" return  ar;");
                             }
 
@@ -559,7 +581,7 @@ namespace SyntaxWalker
         {
 
 
-
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_),  syntax: class_, sm: sm);
             using (var tt2 = tt.newClass($"export interface {GetName(class_)} {getHeader(class_, tt, sm)} "))
             {
                 var mems = class_.Members.OfType<PropertyDeclarationSyntax>().Where(x => x.Modifiers.Any(y => y.IsKind(SyntaxKind.PublicKeyword))).ToList();
@@ -614,7 +636,10 @@ namespace SyntaxWalker
         public static IEnumerable<IPropertySymbol> getProps(ITypeSymbol h)
         {
 
-            var z = h.GetMembers().OfType<IPropertySymbol>().Where(x => !x.GetAttributes().Any(y => y.AttributeClass.Name == "JsonIgnoreAttribute" || y.AttributeClass.Name == "JsonIgnore"));
+            var z = h.GetMembers().OfType<IPropertySymbol>().Where(x => !x.GetAttributes().Any(y => y.AttributeClass.Name == "JsonIgnoreAttribute" || y.AttributeClass.Name == "JsonIgnore")
+            && !(x.Type.Name.StartsWith("ICollection"))
+            && !x.IsOverride
+            );
             return z;
         }
         public static string GetName(TypeDeclarationSyntax class_)
@@ -640,8 +665,8 @@ namespace SyntaxWalker
             string fullname = class_.GetNamespace();
 
             var classType = sm.GetTypeInfo(class_);// sm.GetDeclaredSymbol(class_);
-            addOrUpdateManager(sm.GetDeclaredSymbol(class_), classType, null, tt.getFileName());
-
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_), classType, null, tt.getFileName(), syntax: class_, sm: sm);
+         
 
 
             var superClassSymbol = class_.getBaseClass(sm);
@@ -918,7 +943,15 @@ namespace SyntaxWalker
 
 
                         }
+                        for(int i=0;i<1;++i){
+                            var t=managerMap.First(x => x.Key.ToString() == "Models.Response");
+                            //SemanticModel model = smC[tree];
+                            setIsHideFalseForDerivedClass(t.Key);
 
+                            t = managerMap.First(x => x.Key.ToString() == "Models.Question");
+                            //SemanticModel model = smC[tree];
+                            setIsHideFalseForDerivedClass(t.Key);
+                        }
 
                         {
                             var project = solution.Projects.First(x => x.Name == "Data");
