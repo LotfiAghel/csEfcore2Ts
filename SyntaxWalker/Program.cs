@@ -234,6 +234,8 @@ namespace SyntaxWalker
         {
             var interfaces = getInterfaces(class_, tt2, sm);
             var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
+            var bases=class_.GetBaseClasses(sm);
+            var baseId=bases.Where(x => x.GetMembers().Any(x => x.Name == "id")).FirstOrDefault();
             addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces);
             if (interfaces.Count() > 0)
                 return $" extends {interfaces.ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}")}";
@@ -481,7 +483,7 @@ namespace SyntaxWalker
                 //tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())} : {getTsName(rmp2.Type, sm)};");
                 tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())}{nullableS} : Forg<{rmp22.Type.Name},{getTsName(rmp2.Type, sm)}>;");
                 res.Add(f.Key);
-                addOrUpdateManager(sm.GetDeclaredSymbol(class_), keyType: rmp2.Type);
+                //addOrUpdateManager(sm.GetDeclaredSymbol(class_), keyType: rmp2.Type);
             }
             foreach (var f in frs)
             {
@@ -644,9 +646,18 @@ namespace SyntaxWalker
 
             var superClassSymbol = class_.getBaseClass(sm);
             var hh = class_.GetBaseClasses(sm);
+            var bases = class_.GetBaseClasses(sm);
+            var baseId = bases.Where(x => x.GetMembers().Any(x => x.Name == "id")).FirstOrDefault();
+            if (baseId != null)
+            {
+                var z = baseId.GetMembers().First(x => x.Name == "id");
+                
+                addOrUpdateManager(sm.GetDeclaredSymbol(class_), keyType: (z as IPropertySymbol).Type);
+              
+            }
             if (superClassSymbol != null)
                 addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: hh);
-
+            
 
             //if(h!= null) 
             //    tt.WriteLine($"@Deserialize.inheritSerialization(() => {getTsName(h,sm)})");
@@ -959,7 +970,7 @@ namespace SyntaxWalker
                                         {
                                             var path = $"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\{ff.fn}.ts";
                                             if(File.Exists(path))
-                                                File.WriteAllText(path, string.Empty);
+                                            File.WriteAllText(path, string.Empty);
                                             using (var fwriter = new FileWriter(path))
                                             {
 
