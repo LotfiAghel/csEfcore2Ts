@@ -168,6 +168,7 @@ namespace SyntaxWalker
         }
         private static TypeDes addOrUpdateManager(ITypeSymbol type0, TypeInfo? type = null, ITypeSymbol keyType = null, string fn = null, ClassBlock block = null, IEnumerable<ITypeSymbol> used = null)
         {
+            
             TypeDes res;
             if (!managerMap.TryGetValue(type0, out res))
                 managerMap[type0] = res = new TypeDes();
@@ -178,7 +179,10 @@ namespace SyntaxWalker
             if (block != null)
                 res.block = block;
             if (keyType != null)
+            {
                 res.keyType = keyType;
+                res.keyTypeName = keyType.Name;
+            }
             if (used != null)
                 foreach (var u in used)
                 {
@@ -242,7 +246,7 @@ namespace SyntaxWalker
 
 
             var baseClass = class_.getBaseClass(sm);
-
+            
             var interfaces = getInterfaces(class_, tt2, sm);
             var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
             addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces);
@@ -477,6 +481,7 @@ namespace SyntaxWalker
                 //tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())} : {getTsName(rmp2.Type, sm)};");
                 tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())}{nullableS} : Forg<{rmp22.Type.Name},{getTsName(rmp2.Type, sm)}>;");
                 res.Add(f.Key);
+                addOrUpdateManager(sm.GetDeclaredSymbol(class_), keyType: rmp2.Type);
             }
             foreach (var f in frs)
             {
@@ -953,7 +958,8 @@ namespace SyntaxWalker
                                         try
                                         {
                                             var path = $"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\{ff.fn}.ts";
-                                            File.WriteAllText(path, string.Empty);
+                                            if(File.Exists(path))
+                                                File.WriteAllText(path, string.Empty);
                                             using (var fwriter = new FileWriter(path))
                                             {
 
@@ -1018,19 +1024,20 @@ namespace SyntaxWalker
                                 var tt = managerMap.Where(x => ress.Contains(x.Key));
 
                                 foreach (var t in tt)
-                                    {
-                                        fwriter.WriteLine($"import {{ {t.Key.Name} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
-                                    }
+                                {
+                                    fwriter.WriteLine($"import {{ {t.Key.Name} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
+                                }
 
 
                                 fwriter.WriteLine("\n\n");
                                 fwriter.WriteLine("class Manager{");
                                 foreach (var t in tt)
-                                    {
-                                        fwriter.WriteLine($"{t.Key.Name}Manager: EntityManager<{t.Key.Name},Number>=new EntityManager<{t.Key.Name},Number>(\"{t.Key}\");");
-                                    }
+                                {
+                                    var ss = t.Value.keyTypeName!=null ? getTsName(t.Value.keyTypeName):"Number";
+                                    fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\");");
+                                }
                                 fwriter.WriteLine("}");
-                                fwriter.WriteLine("export var manager=new Manager()");
+                                fwriter.WriteLine("export var oldManager=new Manager()");
                             }
                         using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\managers.ts"))
                         {
@@ -1042,23 +1049,20 @@ namespace SyntaxWalker
                             var ress = getContext(project, compilation);
                             var tt = managerMap.Where(x => ress.Contains(x.Key));
                             foreach (var t in tt)
-                                if (t.Value.isResource && t.Value.fn.StartsWith("Models"))
                                 {
                                     fwriter.WriteLine($"import {{ {t.Key.Name} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
                                 }
 
 
                             fwriter.WriteLine("\n\n");
-                            foreach (var t in tt)
-                                {
-                                    fwriter.WriteLine($"export var {t.Key.Name}Manager=new EntityManager<{t.Key.Name},Number>(\"{t.Key}\");");
-                                }
+                           
                             fwriter.WriteLine("\n\n");
                             fwriter.WriteLine("class Manager{");
                             foreach (var t in tt)
-                                {
-                                    fwriter.WriteLine($"{t.Key.Name}Manager: EntityManager<{t.Key.Name},Number>=new EntityManager<{t.Key.Name},Number>(\"{t.Key}\");");
-                                }
+                            {
+                                var ss = t.Value.keyTypeName != null ? getTsName(t.Value.keyTypeName) : "Number";
+                                fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\");");
+                            }
                             fwriter.WriteLine("}");
                             fwriter.WriteLine("export var manager=new Manager()");
                         }

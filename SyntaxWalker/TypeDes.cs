@@ -10,6 +10,7 @@ namespace SyntaxWalker
     public class TypeDes
     {
         public ITypeSymbol keyType;
+        public string keyTypeName;
         public TypeInfo type;
         public string fn;
         public bool isOld = false;
