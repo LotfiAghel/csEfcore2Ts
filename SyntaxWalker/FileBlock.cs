@@ -18,7 +18,7 @@ namespace SyntaxWalker
 
         public ClassBlock(string name, BlockDespose parnet,int tab) : base(name, parnet, tab )
         {
-
+            braket = true;
         }
 
        

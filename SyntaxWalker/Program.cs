@@ -156,7 +156,16 @@ namespace SyntaxWalker
             }
         }
 
-
+        private static void setIsHideFalse(ITypeSymbol z,HashSet<ITypeSymbol> mark)
+        {
+            if (mark.Contains(z) || !managerMap.ContainsKey(z))
+                return;
+            mark.Add(z);
+            var t=managerMap[z];
+            t.isHide = false;
+            foreach (var zz in t.usedTypes)
+                setIsHideFalse(zz, mark);
+        }
         private static TypeDes addOrUpdateManager(ITypeSymbol type0,TypeInfo? type=null, ITypeSymbol keyType=null, string fn=null,ClassBlock block=null,IEnumerable<ITypeSymbol> used=null)
         {
             TypeDes res;
@@ -172,7 +181,18 @@ namespace SyntaxWalker
                 res.keyType = keyType;
             if (used != null)
                 foreach (var u in used)
+                {
                     res.usedTypes.Add(u);
+                    if(u is INamedTypeSymbol un && un.IsGenericType)
+                    {
+                        
+                        
+                        Console.WriteLine("");
+                        res.usedTypes.Add(un.OriginalDefinition);
+                        foreach (var t in un.TypeArguments)
+                            res.usedTypes.Add(t);
+                    }
+                }
             return res;
         }
         public static IEnumerable<TypeInfo> getBases(TypeDeclarationSyntax class_, SemanticModel sm)
@@ -432,9 +452,11 @@ namespace SyntaxWalker
             foreach (var f in fields)
             {
                 var rmp2 = sm.GetTypeInfo(f.Type);
+                addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: new List<ITypeSymbol>() { rmp2.Type });
                 if (f.Type is GenericNameSyntax gns)
                 {
-                    foreach(var ta in gns.TypeArgumentList.Arguments)
+                    //addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: new List<ITypeSymbol>() { gns. });
+                    foreach (var ta in gns.TypeArgumentList.Arguments)
                     {
                         var s=sm.GetTypeInfo(ta);
                         //addAllNames(s.Type, tt2);
@@ -486,6 +508,9 @@ namespace SyntaxWalker
                         if (genericNameSyntax.Identifier.ToString() == "ICollection")
                         {
                             var nd2 = genericNameSyntax.TypeArgumentList.Arguments.ToList()[0];
+                            var s = sm.GetTypeInfo(nd2);
+                            addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: new List<ITypeSymbol>() { s.Type });
+
                             using (var wr2 = tt2.newBlock($"async get{mem.Identifier.ToString()}():Promise<{nd2}[]>"))
                             {
 
@@ -506,13 +531,8 @@ namespace SyntaxWalker
                         continue;
                     }
                     var rmp2 = sm.GetTypeInfo(mem.Type);
-                    //frs.Values.Where(x=> x.enityFildNameName== mem.Identifier.ToString()).Any()
-                   
                     
-
-                    //Console.WriteLine(mem.Type);
-                    //Console.WriteLine(mem.Identifier.ToString());
-                    addOrUpdateManager(sm.GetDeclaredSymbol(class_), used:new List<ITypeSymbol>() { rmp2.Type });
+                    //addOrUpdateManager(sm.GetDeclaredSymbol(class_), used:new List<ITypeSymbol>() { rmp2.Type });
 
                     
 
@@ -587,7 +607,7 @@ namespace SyntaxWalker
         public static IEnumerable<IPropertySymbol> getProps(ITypeSymbol h)
         {
             
-            var z = h.GetMembers().OfType<IPropertySymbol>().Where(x => !x.GetAttributes().Any(y => y.AttributeClass.Name == "JsonIgnoreAttribute"));
+            var z = h.GetMembers().OfType<IPropertySymbol>().Where(x => !x.GetAttributes().Any(y => y.AttributeClass.Name == "JsonIgnoreAttribute" || y.AttributeClass.Name == "JsonIgnore"));
             return z;
         }
         public static string GetName(TypeDeclarationSyntax class_)
@@ -620,7 +640,7 @@ namespace SyntaxWalker
             var superClassSymbol = class_.getBaseClass(sm);
             var hh = class_.GetBaseClasses(sm);
             if (superClassSymbol != null)
-                addOrUpdateManager(sm.GetDeclaredSymbol(class_), used:new List<ITypeSymbol>() { superClassSymbol });
+                addOrUpdateManager(sm.GetDeclaredSymbol(class_), used:hh);
 
 
             //if(h!= null) 
@@ -636,8 +656,10 @@ namespace SyntaxWalker
                 //if (superClassSymbol != null)
                 foreach(var superClassSymbol1 in hh)
                 {
+                    //var fields = getSadeProp(superClassSymbol1, sm);
                     args.AddRange(getProps(superClassSymbol1).ToList().ConvertAll(x => new Tuple<string, string>(x.Name, getTsName(x.Type, sm))));
                     //hh.AddRange(getProps(h).ToList().ConvertAll(x => $" {x.Name}:{getTsName(x.Type,sm)}"));
+                    addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: getProps(superClassSymbol1).ToList().ConvertAll(x => x.Type));
                 }
                 args.AddRange(res.ConvertAll(x => new Tuple<string, string>(x.Identifier.ToString(), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
                 //args.AddRange(z.ToList().ConvertAll(x => new Tuple<string, string>(x.Name, getTsName(x.Type, sm))));
@@ -875,11 +897,7 @@ namespace SyntaxWalker
                                                 }
                                         }
                                     }
-                                    for (int i = 0; i < 200; ++i)
-                                        wr.WriteLine("                                                                                      ");
-
-                                    wr.WriteLine("                                     ");
-
+                                    
                                     //fwriter.Flush();
                                 }
 
@@ -895,19 +913,28 @@ namespace SyntaxWalker
                             var project=solution.Projects.First(x => x.Name == "Data");
                             var compilation = comp[project];// await project.GetCompilationAsync();
                             var ress=getContext(project, compilation);
-
+                            var t=managerMap.Where(x => ress.Contains(x.Key));
+                            foreach (var z in t)
+                                setIsHideFalse(z.Key,new());
                         }
-                        {
+                        for(int i=0; i<3; ++i){
                             var project = solution.Projects.First(x => x.Name == "old_Data");
                             var compilation = comp[project];// await project.GetCompilationAsync();
                             var ress = getContext(project, compilation);
+                            var t = managerMap.Where(x => ress.Contains(x.Key));
+                            foreach (var z in t) 
+                                setIsHideFalse(z.Key, new());
 
                         }
-                        
+                        {
+                            var t = managerMap.Where(x => x.Key.ToString().StartsWith("ClientMsgs"));
+                            foreach (var z in t)
+                                setIsHideFalse(z.Key, new());
+                        }
                         foreach (var ff in fns)
                             try
                             {
-                                var cls = managerMap.Values.Where(x => x.fn == ff.fn).ToList();
+                                var cls = managerMap.Values.Where(x => x.fn == ff.fn && !x.isHide).ToList();
                                 HashSet<ITypeSymbol> usedTypes = new ();
                                 foreach (var cl in cls)
                                     foreach (var us in cl.usedTypes)
@@ -915,14 +942,17 @@ namespace SyntaxWalker
                                 if (true)
                                 {
                                    
-                                    if (cls.Count > 1)
+                                    if (cls.Count > 0)
                                     {
                                         try
                                         {
-                                            using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\{ff.fn}.ts"))
+                                            var path = $"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\{ff.fn}.ts";
+                                            File.WriteAllText(path, string.Empty);
+                                            using (var fwriter = new FileWriter(path))
                                             {
+                                                
                                                 fwriter.WriteLine("import  { Guid,Forg,httpGettr,List,Dictionary,ForeignKey,ForeignKey2,Rial } from \"Models/base\";");
-                                                fwriter.WriteLine("import { IIdMapper , IdMapper} from \"Models/Basics/BaseModels/Basics/Basics\"");
+                                                //fwriter.WriteLine("import { IIdMapper , IdMapper} from \"Models/Basics/BaseModels/Basics/Basics\"");
                                                 //fwriter.WriteLine("import * as Deserialize from \"dcerialize\"");
 
                                                 //fwriter.WriteLine("import * as Deserialize from 'dcerialize'");
@@ -954,7 +984,7 @@ namespace SyntaxWalker
                                                 fwriter.WriteLine("\n\n");
                                                 foreach (var cl in cls)
                                                     if(cl.block!=null)
-                                                        fwriter.WriteLine(cl.block.ToString());
+                                                        fwriter.Write(cl.block.ToString());
 
                                                 //Deserialize.RuntimeTypingSetTypeString(EntityList<CoachType>, "Models.EntityList<Coach>");
 
@@ -1084,7 +1114,7 @@ namespace SyntaxWalker
                         foreach (var namespace_ in nameSpaces)
                         {
                             //var DBcontext = namespace_.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(x => x.Identifier.ToString() == "DBContext");
-                            var DBcontext = root.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(x => x.getBaseClass(model)?.Name == "DbContext");
+                            var DBcontext = root.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(x => x.GetBaseClasses(model).Any( x=> x.Name== "DbContext"));
                             if (DBcontext == null)
                                 continue;
                             var props = DBcontext.DescendantNodes().OfType<PropertyDeclarationSyntax>().Where(x => x.Type.Kind() == SyntaxKind.GenericName

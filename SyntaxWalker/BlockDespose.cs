@@ -72,8 +72,10 @@ namespace SyntaxWalker
         {
 
             var argsS = args.ToList().ConvertAll(x => $"{x.Item1}:{x.Item2}").agregate();
-            return newBlock($"constructor(args:{{ {argsS} }})");
-
+            var b= newBlock($"constructor(args:{{ {argsS} }})");
+            b.braket = true;
+            //lines.Add(b);
+            return b;
             //return newFunction( "constructor" , args,null,false);
         }
 
