@@ -62,12 +62,13 @@ namespace SyntaxWalker
                 yield return file;
         }
 
-        public static Dictionary<string, string> tsMap = new() { { "int", "Number" },{ "float","Number"} ,
-         { "Int32", "Number" },
-         { "Int64", "Number" },
-         { "Decimal", "Number" },
-        { "long", "Number" },
-        { "Single", "Number" },
+        public static Dictionary<string, string> tsMap = new() { { "int", "number" },{ "float","number"} ,
+         { "Int32", "number" },
+         { "String", "string" },
+         { "Int64", "number" },
+         { "Decimal", "number" },
+        { "long", "number" },
+        { "Single", "number" },
             { "DateTimeOffset","Date"},
             { "DateTime","Date"}
         };
@@ -181,8 +182,9 @@ namespace SyntaxWalker
             }
         }
         private static TypeDes addOrUpdateManager(ITypeSymbol type0, TypeInfo? type = null, ITypeSymbol keyType = null, string fn = null, ClassBlock block = null, IEnumerable<ITypeSymbol> used = null,
-            TypeDeclarationSyntax syntax=null,
-            SemanticModel sm=null)
+            TypeDeclarationSyntax syntax = null,
+            SemanticModel sm = null,
+            bool? isNonAbstractClass = null)
         {
             
             TypeDes res;
@@ -194,6 +196,8 @@ namespace SyntaxWalker
                 res.fn = fn;
             if (block != null)
                 res.block = block;
+            if (isNonAbstractClass != null)
+                res.isNonAbstractClass = isNonAbstractClass.Value;
             if (syntax != null)
                 res.syntax = syntax;
             if (sm != null)
@@ -256,7 +260,7 @@ namespace SyntaxWalker
             var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
             var bases=class_.GetBaseClasses(sm);
             var baseId=bases.Where(x => x.GetMembers().Any(x => x.Name == "id")).FirstOrDefault();
-            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces,syntax: class_, sm: sm);
+           
             if (interfaces.Count() > 0)
                 return $" extends {interfaces.ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}")}";
             return "";
@@ -271,7 +275,7 @@ namespace SyntaxWalker
             
             var interfaces = getInterfaces(class_, tt2, sm);
             var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
-            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces);
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces,isNonAbstractClass:true);
             if (baseClass != null)
                 res += $" extends {getTsName(baseClass, sm)}";
             if (interfaces.Count() > 0)
@@ -515,7 +519,7 @@ namespace SyntaxWalker
                 addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: new List<ITypeSymbol>() { rmp22.Type });
                 var nullable = rmp2.Type.OriginalDefinition.Name == "Nullable";
                 var nullableS = nullable ? "!" : "";
-                using (var wr3 = tt2.newFunction($"get{f.Value.Identifier.ToString()}", null, $"Promise<{rmp22.Type.Name}>", true))
+                using (var wr3 = tt2.newFunction($"get{toCamelClass(f.Value.Identifier.ToString())}", null, $"Promise<{rmp22.Type.Name}>", true))
                 {
                     wr3.WriteLine("//this code must handle async and sync 2");
 
@@ -540,7 +544,7 @@ namespace SyntaxWalker
                             var s = sm.GetTypeInfo(nd2);
                             addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: new List<ITypeSymbol>() { s.Type });
 
-                            using (var wr2 = tt2.newBlock($"async get{mem.Identifier.ToString()}():Promise<{nd2}[]>"))
+                            using (var wr2 = tt2.newBlock($"async get{toCamelClass(mem.Identifier.ToString())}():Promise<{nd2}[]>"))
                             {
 
                                 var rmp3 = sm.GetTypeInfo(nd2);
@@ -593,7 +597,7 @@ namespace SyntaxWalker
         {
 
             var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
-            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, null, tt.getFileName());
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, null, tt.getFileName(), isNonAbstractClass : false);
             using (var tt2 = tt.newClass($"export enum {class_.Identifier} "))
             {
                 addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, block: tt2);
@@ -628,7 +632,7 @@ namespace SyntaxWalker
         public static void handleInterface(InterfaceDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
         {
             var memType0 = sm.GetTypeInfo(class_);// sm.GetDeclaredSymbol(class_);
-            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, null, tt.getFileName());
+            addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, null, tt.getFileName(), isNonAbstractClass: false);
 
             handleType(class_, tt, sm);
 
@@ -695,10 +699,10 @@ namespace SyntaxWalker
                 foreach (var superClassSymbol1 in hh)
                 {
 
-                    args.AddRange(getProps(superClassSymbol1).ToList().ConvertAll(x => new Tuple<string, string>(x.Name, getTsName(x.Type, sm))));
+                    args.AddRange(getProps(superClassSymbol1).ToList().ConvertAll(x => new Tuple<string, string>(toCamel(x.Name), getTsName(x.Type, sm))));
                     addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: getProps(superClassSymbol1).ToList().ConvertAll(x => x.Type));
                 }
-                args.AddRange(res.ConvertAll(x => new Tuple<string, string>(x.Identifier.ToString(), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
+                args.AddRange(res.ConvertAll(x => new Tuple<string, string>(toCamel(x.Identifier.ToString()), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
 
                 using (var hed = tt2.newConstructor(args))
                 {
@@ -710,13 +714,12 @@ namespace SyntaxWalker
                             hed.SuperCunstrocotrCall(new() { "args" });
                         }
                         foreach (var m in res)
-                            hed.WriteLine($"this.{toCamel(m.Identifier.ToString())} = args.{m.Identifier.ToString()};");
+                            hed.WriteLine($"this.{toCamel(m.Identifier.ToString())} = args.{toCamel(m.Identifier.ToString())};");
                     }
                 }
             }
 
-
-
+            
 
         }
         public static void handleStruct(StructDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
@@ -1021,7 +1024,7 @@ namespace SyntaxWalker
 
                                                     if (managerMap[tf].fn != null && managerMap[tf].fn != ff.fn)
                                                     {
-                                                        fwriter.WriteLine($"import {{ {tf.Name} }} from \"Models/{linuxPathStyle(managerMap[tf].fn)}\"");
+                                                        ImportWrite(tf, fwriter);
                                                     }
 
                                                 }
@@ -1040,7 +1043,11 @@ namespace SyntaxWalker
                                                 fwriter.WriteLine("\n\n");
                                                 foreach (var cl in cls)
                                                     if (cl.block != null)
+                                                    {
                                                         fwriter.Write(cl.block.ToString());
+                                                        if(cl.syntax!=null  && cl.isNonAbstractClass)
+                                                            fwriter.WriteLine($"export var {GetName(cl.syntax)}Creator = (args:any)=> new {GetName(cl.syntax)}(args);");
+                                                    }
 
                                                 //Deserialize.RuntimeTypingSetTypeString(EntityList<CoachType>, "Models.EntityList<Coach>");
 
@@ -1069,7 +1076,7 @@ namespace SyntaxWalker
 
                                 foreach (var t in tt)
                                 {
-                                    fwriter.WriteLine($"import {{ {t.Key.Name} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
+                                    ImportWrite(t.Key, fwriter);
                                 }
 
 
@@ -1077,8 +1084,8 @@ namespace SyntaxWalker
                                 fwriter.WriteLine("class Manager{");
                                 foreach (var t in tt)
                                 {
-                                    var ss = t.Value.keyTypeName!=null ? getTsName(t.Value.keyTypeName):"Number";
-                                    fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\");");
+                                    var ss = t.Value.keyTypeName!=null ? getTsName(t.Value.keyTypeName):"number";
+                                    fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}Creator);");
                                 }
                                 fwriter.WriteLine("}");
                                 fwriter.WriteLine("export var oldManager=new Manager()");
@@ -1093,9 +1100,7 @@ namespace SyntaxWalker
                             var ress = getContext(project, compilation);
                             var tt = managerMap.Where(x => ress.Contains(x.Key));
                             foreach (var t in tt)
-                                {
-                                    fwriter.WriteLine($"import {{ {t.Key.Name} }} from \"Models/{linuxPathStyle(t.Value.fn)}\"");
-                                }
+                                ImportWrite(t.Key, fwriter);
 
 
                             fwriter.WriteLine("\n\n");
@@ -1104,8 +1109,8 @@ namespace SyntaxWalker
                             fwriter.WriteLine("class Manager{");
                             foreach (var t in tt)
                             {
-                                var ss = t.Value.keyTypeName != null ? getTsName(t.Value.keyTypeName) : "Number";
-                                fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\");");
+                                var ss = t.Value.keyTypeName != null ? getTsName(t.Value.keyTypeName) : "number";
+                                fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}Creator);");
                             }
                             fwriter.WriteLine("}");
                             fwriter.WriteLine("export var manager=new Manager()");
@@ -1171,6 +1176,13 @@ namespace SyntaxWalker
             }
 
         }
+        public static void ImportWrite(ITypeSymbol tf, FileWriter fwriter)
+        {
+            var cs = $" , {tf.Name}Creator ";
+            fwriter.WriteLine($"import {{ {tf.Name}  {(managerMap[tf].isNonAbstractClass ? cs : "")}}} from \"Models/{linuxPathStyle(managerMap[tf].fn)}\"");
+
+            
+        }
         public static List<ITypeSymbol> getContext(Project project, Compilation compilation)
         {
             var res = new List<ITypeSymbol>();
@@ -1221,6 +1233,11 @@ namespace SyntaxWalker
         public static string toCamel(string name)
         {
             return Char.ToLowerInvariant(name[0]) + name.Substring(1);
+
+        }
+        public static string toCamelClass(string name)
+        {
+            return Char.ToUpper(name[0]) + name.Substring(1);
 
         }
     }

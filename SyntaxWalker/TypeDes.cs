@@ -12,6 +12,7 @@ namespace SyntaxWalker
         public ITypeSymbol keyType;
         public string keyTypeName;
         public TypeInfo type;
+        public bool isNonAbstractClass = false;
         public string fn;
         public bool isOld = false;
         internal List<PropertyDeclarationSyntax> filds;
