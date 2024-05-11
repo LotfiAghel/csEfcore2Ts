@@ -19,5 +19,6 @@ namespace SyntaxWalker
 
         public bool isResource { get; internal set; }
         public bool isHide { get; internal set; } = true;
+        public string context { get; internal set; } = null;
     }
 }
