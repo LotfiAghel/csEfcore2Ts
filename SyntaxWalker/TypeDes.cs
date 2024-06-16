@@ -23,5 +23,8 @@ namespace SyntaxWalker
         public bool isResource { get; internal set; }
         public bool isHide { get; internal set; } = true;
         public string context { get; internal set; } = null;
+        public bool isPolimorphicBase { get; set; } = false;
+        public bool isClientCreatable { get; set; } = false;
+
     }
 }

@@ -7,7 +7,15 @@ using static SyntaxWalker.Program;
 //using Microsoft.CodeAnalysis.Common;
 namespace SyntaxWalker
 {
-
+    public struct TsTypeInf
+    {
+        public TsTypeInf(string x)
+        {
+            name = x;
+        }
+        public string name { get; set; }
+        public bool nullable { get; set; } = false;
+    }
     public class FunctionCallHead
     {
         public string Name;
@@ -68,10 +76,10 @@ namespace SyntaxWalker
             
         }
 
-        public BlockDespose newConstructor(List<Tuple<string, string>> args)
+        public BlockDespose newConstructor(List<Tuple<string, TsTypeInf>> args)
         {
 
-            var argsS = args.ToList().ConvertAll(x => $"{x.Item1}:{x.Item2}").agregate();
+            var argsS = args.ToList().ConvertAll(x => $"{x.Item1}{(x.Item2.nullable?"?":"")}:{x.Item2.name}").agregate();
             var b= newBlock($"constructor(args:{{ {argsS} }})");
             b.braket = true;
             //lines.Add(b);

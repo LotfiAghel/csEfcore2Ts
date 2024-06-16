@@ -9,15 +9,8 @@ using Microsoft.Build.Locator;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
-using System.Xml.Linq;
-using static System.Net.Mime.MediaTypeNames;
-using static SyntaxWalker.Program;
-using System.Runtime;
-using System.Reflection.Metadata;
-using System.Buffers.Text;
 using System.Text.RegularExpressions;
-using System.Data.SqlTypes;
-using System.Collections;
+
 
 
 
@@ -62,46 +55,45 @@ namespace SyntaxWalker
                 yield return file;
         }
 
-        public static Dictionary<string, string> tsMap = new() { { "int", "number" },{ "float","number"} ,
-         { "Int32", "number" },
-         { "String", "string" },
-         { "Int64", "number" },
-         { "Decimal", "number" },
-        { "long", "number" },
-        { "Single", "number" },
-            { "DateTimeOffset","Date"},
-            { "DateTime","Date"}
+        public static Dictionary<string, TsTypeInf> tsMap = new() { { "int", new TsTypeInf("number") },{ "float", new TsTypeInf("number")} ,
+         { "Int32",  new TsTypeInf("number") },
+         { "String",  new TsTypeInf("string") },
+         { "Int64",  new TsTypeInf("number") },
+         { "Decimal",  new TsTypeInf("number") },
+        { "long",  new TsTypeInf("number") },
+        { "Single",  new TsTypeInf("number") },
+            { "DateTimeOffset", new TsTypeInf("Date")},
+            { "DateTime", new TsTypeInf("Date")}
         };
 
         static List<FileBlock> fns = new();
         public static Dictionary<ITypeSymbol, TypeDes> managerMap = new() { };
         public static Dictionary<TypeInfo, TypeDes> managerMap2 = new() { };
-        public class TsTypeInf
+       
+        private static TsTypeInf getTsName(string type)
         {
-
-        }
-        private static string getTsName(string type)
-        {
-            var x = type;
-            if (x.EndsWith('?'))
+            var x = new TsTypeInf(type);
+            if (x.name.EndsWith('?'))
             {
-                x = x.Substring(0, x.Length - 1);
-                return getTsName(x) + " | undefined";
+                x.name = x.name.Substring(0, x.name.Length - 1);
+                var z = getTsName(x.name);
+                z.nullable = true;
+                return  z;
             }
-            string res;
+            TsTypeInf res;
             if (tsMap.TryGetValue(type, out res))
                 return res;
 
-            return type;
+            return x;
         }
-        private static string getTsName(TypeInfo type, SemanticModel sm)
+        private static TsTypeInf getTsName(TypeInfo type, SemanticModel sm)
         {
 
 
 
             return getTsName(type.Type, sm);
         }
-        private static string getTsName(ITypeSymbol type, SemanticModel sm)
+        private static TsTypeInf getTsName(ITypeSymbol type, SemanticModel sm)
         {
             //return "TODO";
             //var tt=sm.GetTypeInfo(type);
@@ -110,23 +102,26 @@ namespace SyntaxWalker
 
                 Console.WriteLine("");
                 var s = type as INamedTypeSymbol;
-                return getTsName(s.TypeArguments.FirstOrDefault(), sm) + " | undefined";
+                var z= getTsName(s.TypeArguments.FirstOrDefault(), sm);
+                z.nullable = true;
+                return z;
                 Console.WriteLine("");
             }
             if (type is INamedTypeSymbol s2 && s2.TypeArguments != null && s2.TypeArguments.Count() > 0)
             {
 
                 Console.WriteLine("");
-                var res = getTsName(type.Name) + "<";
+                var res = getTsName(type.Name);
+                res.name+= "<";
 
-                res += s2.TypeArguments.ToList().ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}");
-                res += ">";
+                res.name += s2.TypeArguments.ToList().ConvertAll(x => getTsName(x, sm).name).Aggregate((l, r) => $"{l},{r}");
+                res.name += ">";
                 return res;
             }
             return getTsName(type.Name);
 
         }
-        private static string getTsName(TypeSyntax type, SemanticModel sm)
+        private static TsTypeInf getTsName(TypeSyntax type, SemanticModel sm)
         {
 
             var tt = sm.GetTypeInfo(type);
@@ -157,18 +152,20 @@ namespace SyntaxWalker
             }
         }
 
-        private static void setIsHideFalse(ITypeSymbol z, HashSet<ITypeSymbol> mark)
+        private static bool setIsHideFalse(ITypeSymbol z, HashSet<ITypeSymbol> mark)
         {
             if (mark.Contains(z) || !managerMap.ContainsKey(z))
-                return;
+                return true;
             mark.Add(z);
             var t = managerMap[z];
             t.isHide = false;
             foreach (var zz in t.usedTypes)
                 setIsHideFalse(zz, mark);
+            return true;
         }
-        private static void setIsHideFalseForDerivedClass(ITypeSymbol z)
+        private static List<KeyValuePair<ITypeSymbol, TypeDes>> setIsHideFalseForDerivedClass(ITypeSymbol z)
         {
+            var res = new List<KeyValuePair<ITypeSymbol, TypeDes>>();
             foreach(var e in managerMap)
             {
                 if (e.Value.syntax == null)
@@ -177,9 +174,11 @@ namespace SyntaxWalker
                 if (bases.Contains(z))
                 {
                     setIsHideFalse(e.Key, new ());
-                    e.Value.isHide = false;
+                    //e.Value.isHide = false;
+                    res.Add(e);
                 }
             }
+            return res;
         }
         private static TypeDes addOrUpdateManager(ITypeSymbol type0, TypeInfo? type = null, ITypeSymbol keyType = null, string fn = null, ClassBlock block = null, IEnumerable<ITypeSymbol> used = null,
             TypeDeclarationSyntax syntax = null,
@@ -262,7 +261,7 @@ namespace SyntaxWalker
             var baseId=bases.Where(x => x.GetMembers().Any(x => x.Name == "id")).FirstOrDefault();
            
             if (interfaces.Count() > 0)
-                return $" extends {interfaces.ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}")}";
+                return $" extends {interfaces.ConvertAll(x => getTsName(x, sm).name).Aggregate((l, r) => $"{l},{r}")}";
             return "";
 
         }
@@ -277,9 +276,9 @@ namespace SyntaxWalker
             var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
             addOrUpdateManager(sm.GetDeclaredSymbol(class_), memType0, used: interfaces,isNonAbstractClass:true);
             if (baseClass != null)
-                res += $" extends {getTsName(baseClass, sm)}";
+                res += $" extends {getTsName(baseClass, sm).name}";
             if (interfaces.Count() > 0)
-                res += $" implements {interfaces.ConvertAll(x => getTsName(x, sm)).Aggregate((l, r) => $"{l},{r}")}";
+                res += $" implements {interfaces.ConvertAll(x => getTsName(x, sm).name).Aggregate((l, r) => $"{l},{r}")}";
             return res;
         }
         public static PropertyDeclarationSyntax getPropWithName(TypeDeclarationSyntax class_, string name, SemanticModel sm)
@@ -496,7 +495,8 @@ namespace SyntaxWalker
                         Console.WriteLine(ta);
                     }
                 }
-                tt2.WriteLine($"{toCamel(f.Identifier.ToString())} : {getTsName(rmp2.Type, sm)};");
+                var ttt = getTsName(rmp2.Type, sm);
+                tt2.WriteLine($"{toCamel(f.Identifier.ToString())}{(ttt.nullable?"?":"")} : {ttt.name};");
                 res.Add(f);
             }
             foreach (var f in frs)
@@ -507,7 +507,7 @@ namespace SyntaxWalker
                 var nullable = rmp2.Type.OriginalDefinition.Name == "Nullable";
                 var nullableS = nullable ? "?" : "";
                 //tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())} : {getTsName(rmp2.Type, sm)};");
-                tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())}{nullableS} : Forg<{rmp22.Type.Name},{getTsName(rmp2.Type, sm)}>;");
+                tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())}{nullableS} : Forg<{rmp22.Type.Name},{getTsName(rmp2.Type, sm).name}>;");
                 res.Add(f.Key);
                 //addOrUpdateManager(sm.GetDeclaredSymbol(class_), keyType: rmp2.Type);
             }
@@ -653,6 +653,13 @@ namespace SyntaxWalker
                 res = $"<{class_.TypeParameterList.ChildNodes().ToList().ConvertAll(x => x.ToString()).Aggregate((l, r) => $"{l},{r}")}>";
             return $"{class_.Identifier.ToString()}{res}";
         }
+        public static string GetName2(TypeDeclarationSyntax class_)
+        {
+            var res = "";
+            if (class_.TypeParameterList != null && class_.TypeParameterList.ChildNodes().ToList().Count() > 0)
+                res = $"<{class_.TypeParameterList.ChildNodes().ToList().ConvertAll(x => x.ToString()).Aggregate((l, r) => $"{l},{r}")}>";
+            return $"{class_.Identifier}{res}";
+        }
         public static void handleClass(ClassDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
         {
             //var type=class_.TypeParameterList
@@ -694,15 +701,15 @@ namespace SyntaxWalker
             {
                 var res = handleTypeMemeber(class_, tt2, sm, true);
 
-                var args = new List<Tuple<string, string>>();
+                var args = new List<Tuple<string, TsTypeInf>>();
 
                 foreach (var superClassSymbol1 in hh)
                 {
 
-                    args.AddRange(getProps(superClassSymbol1).ToList().ConvertAll(x => new Tuple<string, string>(toCamel(x.Name), getTsName(x.Type, sm))));
+                    args.AddRange(getProps(superClassSymbol1).ToList().ConvertAll(x => new Tuple<string, TsTypeInf>(toCamel(x.Name), getTsName(x.Type, sm))));
                     addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: getProps(superClassSymbol1).ToList().ConvertAll(x => x.Type));
                 }
-                args.AddRange(res.ConvertAll(x => new Tuple<string, string>(toCamel(x.Identifier.ToString()), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
+                args.AddRange(res.ConvertAll(x => new Tuple<string, TsTypeInf>(toCamel(x.Identifier.ToString()), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
 
                 using (var hed = tt2.newConstructor(args))
                 {
@@ -717,25 +724,40 @@ namespace SyntaxWalker
                             hed.WriteLine($"this.{toCamel(m.Identifier.ToString())} = args.{toCamel(m.Identifier.ToString())};");
                     }
                 }
-            }
+                using (var hed = tt2.newFunction("toJson", new List<Tuple<string, string>>() { }, GetName(class_))) //TODO isclientCreatble or not 
+                {
 
-            
 
+                    /*
+                     * //@ts-ignore
+                    this["$type"]="Models.ExamAction";
+                    return this;
+                    */
+                    classType.ToString();
+                    hed.WriteLine($" //@ts-ignore");
+                    hed.WriteLine($" this[\"$type\"]=\"{sm.GetDeclaredSymbol(class_)}\"");
+                    hed.WriteLine($" return this;");
+
+                }
         }
-        public static void handleStruct(StructDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
+
+
+
+    }
+    public static void handleStruct(StructDeclarationSyntax class_, IBlockDespose tt, SemanticModel sm)
+    {
+        //var type=class_.TypeParameterList
+        /*if (type.Type is INamedTypeSymbol s2 && s2.TypeArguments != null && s2.TypeArguments.Count() > 0)
         {
-            //var type=class_.TypeParameterList
-            /*if (type.Type is INamedTypeSymbol s2 && s2.TypeArguments != null && s2.TypeArguments.Count() > 0)
-            {
 
-                Console.WriteLine("");
-                var res = getTsName(type.Type.Name) + "<";
+            Console.WriteLine("");
+            var res = getTsName(type.Type.Name) + "<";
 
-                res += s2.TypeArguments.ToList().ConvertAll(x => getTsName(x)).Aggregate((l, r) => $"{l},{r}");
-                res += ">";
-                return res;
-            }*/
-            string fullname = class_.GetNamespace();
+            res += s2.TypeArguments.ToList().ConvertAll(x => getTsName(x)).Aggregate((l, r) => $"{l},{r}");
+            res += ">";
+            return res;
+        }*/
+                    string fullname = class_.GetNamespace();
 
             var classType = sm.GetTypeInfo(class_);// sm.GetDeclaredSymbol(class_);
             addOrUpdateManager(sm.GetDeclaredSymbol(class_), classType, null, tt.getFileName());
@@ -753,10 +775,10 @@ namespace SyntaxWalker
                 //var z = classType.Type.GetMembers().OfType<IPropertySymbol>().Where(x => !x.GetAttributes().Any(y => y.AttributeClass.Name == "JsonIgnoreAttribute"));
 
 
-                var args = new List<Tuple<string, string>>();
+                var args = new List<Tuple<string, TsTypeInf>>();
                 //if (superClassSymbol != null)
 
-                args.AddRange(res.ConvertAll(x => new Tuple<string, string>(x.Identifier.ToString(), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
+                args.AddRange(res.ConvertAll(x => new Tuple<string, TsTypeInf>(x.Identifier.ToString(), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
                 //args.AddRange(z.ToList().ConvertAll(x => new Tuple<string, string>(x.Name, getTsName(x.Type, sm))));
                 if (false)
                     using (var hed = tt2.newConstructor(args))
@@ -789,7 +811,7 @@ namespace SyntaxWalker
             Console.WriteLine(rgx.Match("Models/Basics/adf").Success);
             Console.WriteLine(rgx.Match("Models/Basics/adf/sdfs").Success);
 
-            //var wr = new Writer() { writer = new FileWriter("D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\Models2.ts") };
+            //var wr = new Writer() { writer = new FileWriter("D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\Models2.ts") };
             //var wr = new Writer() { writer = new FileWriter("D:\\programing\\Models2.ts") };
 
             var visualStudioInstances = MSBuildLocator.QueryVisualStudioInstances().ToArray();
@@ -855,11 +877,11 @@ namespace SyntaxWalker
                                 if (!s.Contains("Models\\Models"))
                                     continue;/**/
 
-                                //var wr = new Writer() { writer=new FileWriter("D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models2.ts") };
+                                //var wr = new Writer() { writer=new FileWriter("D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models2.ts") };
                                 var fi = new FileInfo(prjfn);
 
                                 var fn2 = tree.FilePath.Substring(fi.Directory.FullName.Length + 1, tree.FilePath.Length - fi.Directory.FullName.Length - 4);
-                                //using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\{fn2}.ts"))
+                                //using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\{fn2}.ts"))
                                 {
 
                                     var wr = new FileBlock(null, null, 0) { fn = fn2 };
@@ -949,11 +971,20 @@ namespace SyntaxWalker
                         for(int i=0;i<1;++i){
                             var t=managerMap.First(x => x.Key.ToString() == "Models.Response");
                             //SemanticModel model = smC[tree];
-                            setIsHideFalseForDerivedClass(t.Key);
+                            setIsHideFalseForDerivedClass(t.Key).Select(x=> setIsHideFalse(x.Key, new()));
+                            t.Value.isClientCreatable = true;
 
                             t = managerMap.First(x => x.Key.ToString() == "Models.Question");
                             //SemanticModel model = smC[tree];
-                            setIsHideFalseForDerivedClass(t.Key);
+                            setIsHideFalseForDerivedClass(t.Key).Select(x => setIsHideFalse(x.Key, new()));
+                            t.Value.isPolimorphicBase = true;
+
+
+                            t = managerMap.First(x => x.Key.ToString() == "Models.ExamAction");
+                            t.Value.isPolimorphicBase = true;
+                            t.Value.isClientCreatable = true;
+                            //SemanticModel model = smC[tree];
+                            setIsHideFalseForDerivedClass(t.Key).Select(x => setIsHideFalse(x.Key, new()));
                         }
 
                         {
@@ -987,14 +1018,14 @@ namespace SyntaxWalker
                         foreach (var ff in fns)
                             try
                             {
-                                var cls = managerMap.Values.Where(x => x.fn == ff.fn && !x.isHide).ToList();
+                                var cls = managerMap.Where(x => x.Value.fn == ff.fn && !x.Value.isHide).ToList();
                                 HashSet<ITypeSymbol> usedTypes = new();
                                 string context = "";
                                 foreach (var cl in cls)
                                 {
-                                    if (cl.context != null)
-                                        context = cl.context;
-                                    foreach (var us in cl.usedTypes)
+                                    if (cl.Value.context != null)
+                                        context = cl.Value.context;
+                                    foreach (var us in cl.Value.usedTypes)
                                         usedTypes.Add(us);
                                 }
                                 if (true)
@@ -1004,7 +1035,7 @@ namespace SyntaxWalker
                                     {
                                         try
                                         {
-                                            var path = $"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\{ff.fn}.ts";
+                                            var path = $"D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\{ff.fn}.ts";
                                             if(File.Exists(path))
                                             File.WriteAllText(path, string.Empty);
                                             using (var fwriter = new FileWriter(path))
@@ -1042,11 +1073,35 @@ namespace SyntaxWalker
                                                 }
                                                 fwriter.WriteLine("\n\n");
                                                 foreach (var cl in cls)
-                                                    if (cl.block != null)
+                                                    if (cl.Value.block != null)
                                                     {
-                                                        fwriter.Write(cl.block.ToString());
-                                                        if(cl.syntax!=null  && cl.isNonAbstractClass)
-                                                            fwriter.WriteLine($"export var {GetName(cl.syntax)}Creator = (args:any)=> new {GetName(cl.syntax)}(args);");
+                                                        fwriter.Write(cl.Value.block.ToString());
+                                                        if (cl.Value.syntax != null && cl.Value.isNonAbstractClass && !cl.Value.isPolimorphicBase )
+                                                        {
+                                                            fwriter.WriteLine($"export var {GetName(cl.Value.syntax)}Creator = (args:any)=> new {GetName(cl.Value.syntax)}(args)");
+                                                        }
+                                                        else
+                                                        if (cl.Value.syntax != null && cl.Value.isNonAbstractClass)
+                                                        {
+                                                            fwriter.WriteLine($"export var {GetName(cl.Value.syntax)}Creator = (args:any)=> {{const types={{");
+                                                            fwriter.WriteLine($"\"{GetName(cl.Value.syntax)}\":(args: any)=>new {GetName(cl.Value.syntax)}(args),");
+                                                            foreach (var e in managerMap)
+                                                            {
+                                                                if (e.Value.syntax == null)
+                                                                    continue;
+                                                                var bases = e.Value.syntax.GetBaseClasses(e.Value.sm);
+                                                                
+                                                                
+                                                                if (bases.Contains(cl.Key))
+                                                                {
+                                                                    fwriter.WriteLine($"\"{e.Key}\":(args: any)=>new {e.Key.Name}(args),"); 
+                                                                }
+                                                            }
+                                                            fwriter.WriteLine("};");
+                                                            fwriter.WriteLine("return types[args[\"$type\"]](args);");
+                                                            fwriter.WriteLine("}");
+                                                        }
+
                                                     }
 
                                                 //Deserialize.RuntimeTypingSetTypeString(EntityList<CoachType>, "Models.EntityList<Coach>");
@@ -1064,7 +1119,7 @@ namespace SyntaxWalker
                             }
                             catch { }
                         if (true)
-                            using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\oldManagers.ts"))
+                            using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\oldManagers.ts"))
                             {
                                 fwriter.WriteLine("import { Guid, Forg,httpGettr } from \"./base\";");
                                 fwriter.WriteLine("import { IEntityManager,EntityManager } from \"./baseManagers\";");
@@ -1084,13 +1139,13 @@ namespace SyntaxWalker
                                 fwriter.WriteLine("class Manager{");
                                 foreach (var t in tt)
                                 {
-                                    var ss = t.Value.keyTypeName!=null ? getTsName(t.Value.keyTypeName):"number";
+                                    var ss = t.Value.keyTypeName!=null ? getTsName(t.Value.keyTypeName).name:"number";
                                     fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}Creator);");
                                 }
                                 fwriter.WriteLine("}");
                                 fwriter.WriteLine("export var oldManager=new Manager()");
                             }
-                        using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\src\\Models\\managers.ts"))
+                        using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\managers.ts"))
                         {
                             fwriter.WriteLine("import { Guid, Forg,httpGettr } from \"./base\";");
                             fwriter.WriteLine("import { IEntityManager,EntityManager } from \"./baseManagers\";");
@@ -1109,7 +1164,7 @@ namespace SyntaxWalker
                             fwriter.WriteLine("class Manager{");
                             foreach (var t in tt)
                             {
-                                var ss = t.Value.keyTypeName != null ? getTsName(t.Value.keyTypeName) : "number";
+                                var ss = t.Value.keyTypeName != null ? getTsName(t.Value.keyTypeName).name : "number";
                                 fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}Creator);");
                             }
                             fwriter.WriteLine("}");
@@ -1123,11 +1178,11 @@ namespace SyntaxWalker
                     }
 
             }
-            var pw = new ProjectWriter($"D:\\programing\\TestHelperTotal\\TestHelperWebsite\\", "ts");
+            var pw = new ProjectWriter($"D:\\programing\\TestHelperTotal\\TestHelper-react2\\", "ts");
             for (int i = 0; i < 100; ++i)
             {
                 var fls = new List<Regex>();
-                //D:\programing\TestHelperTotal\TestHelperWebsite\src\Models\Basics\BaseModels\Basics\Basics.ts
+                //D:\programing\TestHelperTotal\TestHelper-react2\src\Models\Basics\BaseModels\Basics\Basics.ts
                 fls.Add(new Regex(@"Basics/BaseModels/Basics/Basics"));
                 //fls.Add(new Regex(@"Basics/BaseModels/*"));
                 fls.Add(new Regex(@"old_testhelper/Models/Models/*"));
