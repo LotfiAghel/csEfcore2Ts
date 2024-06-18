@@ -973,6 +973,7 @@ namespace SyntaxWalker
                             //SemanticModel model = smC[tree];
                             setIsHideFalseForDerivedClass(t.Key).Select(x=> setIsHideFalse(x.Key, new()));
                             t.Value.isClientCreatable = true;
+                            t.Value.isPolimorphicBase = true;
 
                             t = managerMap.First(x => x.Key.ToString() == "Models.Question");
                             //SemanticModel model = smC[tree];
@@ -1084,7 +1085,8 @@ namespace SyntaxWalker
                                                         if (cl.Value.syntax != null && cl.Value.isNonAbstractClass)
                                                         {
                                                             fwriter.WriteLine($"export var {GetName(cl.Value.syntax)}Creator = (args:any)=> {{const types={{");
-                                                            fwriter.WriteLine($"\"{GetName(cl.Value.syntax)}\":(args: any)=>new {GetName(cl.Value.syntax)}(args),");
+                                                            fwriter.WriteLine($"\"{cl.Key}\":(args: any)=>new {GetName(cl.Value.syntax)}(args),");
+                                                            
                                                             foreach (var e in managerMap)
                                                             {
                                                                 if (e.Value.syntax == null)
@@ -1098,6 +1100,7 @@ namespace SyntaxWalker
                                                                 }
                                                             }
                                                             fwriter.WriteLine("};");
+                                                            fwriter.WriteLine("if(!(\"$type\" in args)){\treturn new Response(args);}");
                                                             fwriter.WriteLine("return types[args[\"$type\"]](args);");
                                                             fwriter.WriteLine("}");
                                                         }
