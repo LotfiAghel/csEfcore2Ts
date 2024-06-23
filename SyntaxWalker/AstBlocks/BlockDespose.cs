@@ -9,9 +9,12 @@ namespace SyntaxWalker
 {
     public struct TsTypeInf
     {
+        internal bool fromSuper;
+        //public ITypeSymbol type0;
         public TsTypeInf(string x)
         {
             name = x;
+            //type0 = type;
         }
         public string name { get; set; }
         public bool nullable { get; set; } = false;
@@ -32,15 +35,15 @@ namespace SyntaxWalker
             return Name + "(" + items.ConvertAll(l => $"{l.Item1}:{l.Item2}").Aggregate((l, r) => $"{l},{r}") + ")";
         }
     }
-    public class BlockDespose : IDisposable, IBlockDespose
+    public class BlockDespose :  IBlockDespose
     {
         public string header;
-        public List<BlockDespose> lines = new() { };
+        public List<IBlockDespose> lines = new() { };
         public int tab = 0;
-        BlockDespose parnet;
+        IBlockDespose parnet;
         public bool braket=false;
         public HashSet<ITypeSymbol> usedTypes = new();
-        public BlockDespose(string name, BlockDespose parnet,int tab)
+        public BlockDespose(string name, IBlockDespose parnet,int tab)
         {
             this.header = name;
             this.parnet = parnet;
@@ -76,16 +79,7 @@ namespace SyntaxWalker
             
         }
 
-        public BlockDespose newConstructor(List<Tuple<string, TsTypeInf>> args)
-        {
-
-            var argsS = args.ToList().ConvertAll(x => $"{x.Item1}{(x.Item2.nullable?"?":"")}:{x.Item2.name}").agregate();
-            var b= newBlock($"constructor(args:{{ {argsS} }})");
-            b.braket = true;
-            //lines.Add(b);
-            return b;
-            //return newFunction( "constructor" , args,null,false);
-        }
+       
 
         public void functionCall(string v, List<string> list)
         {
@@ -106,10 +100,10 @@ namespace SyntaxWalker
 
         }
 
-        public ClassBlock newClass(string text)
+        public IClassBlock newClass(string text)
         {
            
-                var z = new ClassBlock(text, this, tab + 1);
+                var z = ILangSuport.Instance.newClassBlock(text, this, tab + 1);
                 lines.Add(z);
                 return z;
             

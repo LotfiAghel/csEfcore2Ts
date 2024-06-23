@@ -17,7 +17,7 @@ namespace SyntaxWalker
         public bool isOld = false;
         internal List<PropertyDeclarationSyntax> filds;
         public HashSet<ITypeSymbol> usedTypes = new();
-        public ClassBlock block;
+        public IClassBlock block;
         public TypeDeclarationSyntax syntax;
         public SemanticModel sm;
         public bool isResource { get; internal set; }

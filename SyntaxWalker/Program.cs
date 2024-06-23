@@ -10,6 +10,8 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using SyntaxWalker.AstBlocks.ts;
+using SyntaxWalker.AstBlocks.Dart;
 
 
 
@@ -66,13 +68,15 @@ namespace SyntaxWalker
             { "DateTime", new TsTypeInf("Date")}
         };
 
+      
+
         static List<FileBlock> fns = new();
         public static Dictionary<ITypeSymbol, TypeDes> managerMap = new() { };
         public static Dictionary<TypeInfo, TypeDes> managerMap2 = new() { };
        
         private static TsTypeInf getTsName(string type)
         {
-            var x = new TsTypeInf(type);
+            var x = new TsTypeInf( type);
             if (x.name.EndsWith('?'))
             {
                 x.name = x.name.Substring(0, x.name.Length - 1);
@@ -112,6 +116,7 @@ namespace SyntaxWalker
 
                 Console.WriteLine("");
                 var res = getTsName(type.Name);
+                //res.type0 = type;
                 res.name+= "<";
 
                 res.name += s2.TypeArguments.ToList().ConvertAll(x => getTsName(x, sm).name).Aggregate((l, r) => $"{l},{r}");
@@ -180,7 +185,7 @@ namespace SyntaxWalker
             }
             return res;
         }
-        private static TypeDes addOrUpdateManager(ITypeSymbol type0, TypeInfo? type = null, ITypeSymbol keyType = null, string fn = null, ClassBlock block = null, IEnumerable<ITypeSymbol> used = null,
+        private static TypeDes addOrUpdateManager(ITypeSymbol type0, TypeInfo? type = null, ITypeSymbol keyType = null, string fn = null, IClassBlock block = null, IEnumerable<ITypeSymbol> used = null,
             TypeDeclarationSyntax syntax = null,
             SemanticModel sm = null,
             bool? isNonAbstractClass = null)
@@ -470,7 +475,7 @@ namespace SyntaxWalker
             }
             return res;
         }
-        public static List<PropertyDeclarationSyntax> handleTypeMemeber(TypeDeclarationSyntax class_, ClassBlock tt2, SemanticModel sm, bool isClass)
+        public static List<PropertyDeclarationSyntax> handleTypeMemeber(TypeDeclarationSyntax class_, IClassBlock tt2, SemanticModel sm, bool isClass)
         {
             var classType = sm.GetTypeInfo(class_);
             //classType.Type.GetMembers().OfType<IPropertySymbol>();
@@ -701,15 +706,15 @@ namespace SyntaxWalker
             {
                 var res = handleTypeMemeber(class_, tt2, sm, true);
 
-                var args = new List<Tuple<string, TsTypeInf>>();
+                var args = new List<PropInf>();
 
                 foreach (var superClassSymbol1 in hh)
                 {
 
-                    args.AddRange(getProps(superClassSymbol1).ToList().ConvertAll(x => new Tuple<string, TsTypeInf>(toCamel(x.Name), getTsName(x.Type, sm))));
+                    args.AddRange(getProps(superClassSymbol1).ToList().ConvertAll(x => new PropInf(toCamel(x.Name), getTsName(x.Type, sm),true)));
                     addOrUpdateManager(sm.GetDeclaredSymbol(class_), used: getProps(superClassSymbol1).ToList().ConvertAll(x => x.Type));
                 }
-                args.AddRange(res.ConvertAll(x => new Tuple<string, TsTypeInf>(toCamel(x.Identifier.ToString()), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
+                args.AddRange(res.ConvertAll(x => new PropInf(toCamel(x.Identifier.ToString()), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
 
                 using (var hed = tt2.newConstructor(args))
                 {
@@ -724,22 +729,10 @@ namespace SyntaxWalker
                             hed.WriteLine($"this.{toCamel(m.Identifier.ToString())} = args.{toCamel(m.Identifier.ToString())};");
                     }
                 }
-                using (var hed = tt2.newFunction("toJson", new List<Tuple<string, string>>() { }, GetName(class_))) //TODO isclientCreatble or not 
-                {
+                tt2.toJson(GetName(class_), sm.GetDeclaredSymbol(class_).ToString(), args);
+                tt2.fromJson(GetName(class_), sm.GetDeclaredSymbol(class_).ToString(), args);
 
-
-                    /*
-                     * //@ts-ignore
-                    this["$type"]="Models.ExamAction";
-                    return this;
-                    */
-                    classType.ToString();
-                    hed.WriteLine($" //@ts-ignore");
-                    hed.WriteLine($" this[\"$type\"]=\"{sm.GetDeclaredSymbol(class_)}\"");
-                    hed.WriteLine($" return this;");
-
-                }
-        }
+            }
 
 
 
@@ -775,10 +768,10 @@ namespace SyntaxWalker
                 //var z = classType.Type.GetMembers().OfType<IPropertySymbol>().Where(x => !x.GetAttributes().Any(y => y.AttributeClass.Name == "JsonIgnoreAttribute"));
 
 
-                var args = new List<Tuple<string, TsTypeInf>>();
+                var args = new List<PropInf>();
                 //if (superClassSymbol != null)
 
-                args.AddRange(res.ConvertAll(x => new Tuple<string, TsTypeInf>(x.Identifier.ToString(), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
+                args.AddRange(res.ConvertAll(x => new PropInf(x.Identifier.ToString(), getTsName(sm.GetTypeInfo(x.Type).Type, sm))));
                 //args.AddRange(z.ToList().ConvertAll(x => new Tuple<string, string>(x.Name, getTsName(x.Type, sm))));
                 if (false)
                     using (var hed = tt2.newConstructor(args))
@@ -807,6 +800,7 @@ namespace SyntaxWalker
         public static Dictionary<SyntaxTree, CompilationUnitSyntax> rootC = new();
         static async Task Main(string[] args)
         {
+            ILangSuport.Instance = new Dart();
             var rgx = new Regex(@"Models/Basics/*");
             Console.WriteLine(rgx.Match("Models/Basics/adf").Success);
             Console.WriteLine(rgx.Match("Models/Basics/adf/sdfs").Success);

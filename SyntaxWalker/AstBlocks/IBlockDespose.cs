@@ -4,10 +4,16 @@ using System.Collections.Generic;
 
 namespace SyntaxWalker
 {
-    public interface IBlockDespose
+    public interface ILangSuport
+    {
+        public static ILangSuport Instance;
+
+        IClassBlock newClassBlock(string text, IBlockDespose fileBlock, int v);
+    }
+    public interface IBlockDespose: IDisposable
     {
         BlockDespose newBlock(string text);
-        ClassBlock newClass(string text);
+        IClassBlock newClass(string text);
         BlockDespose newFunction(string name,List<Tuple<string,string>> args,string returnType,bool isAsync=false);
         void WriteLine(string text);
         string getFileName();

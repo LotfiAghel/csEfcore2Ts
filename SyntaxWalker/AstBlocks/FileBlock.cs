@@ -2,27 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http.Headers;
-using System.Security.Principal;
-using System.Xml.Linq;
-using static System.Net.Mime.MediaTypeNames;
 //using Microsoft.CodeAnalysis.Common;
 namespace SyntaxWalker
 {
-   
-    public class ClassBlock : BlockDespose
-    {
-        
-        
-        public HashSet<ITypeSymbol> usedTypes = new();
-
-        public ClassBlock(string name, BlockDespose parnet,int tab) : base(name, parnet, tab )
-        {
-            braket = true;
-        }
-
-       
-    }
     public class FileBlock : BlockDespose
     {
         //public IBaseWriter writer;
@@ -75,9 +57,9 @@ namespace SyntaxWalker
             return newBlock($"{(isAsync ? "async" : "")} {name}({argsS}):{returnType}");
         }
 
-        public ClassBlock newClass(string text)
+        public IClassBlock newClass(string text)
         {
-            var z=new ClassBlock(text, this, tab + 1) ;
+            var z=ILangSuport.Instance.newClassBlock(text, this, tab + 1) ;
             lines.Add(z);
             return z;
         }
