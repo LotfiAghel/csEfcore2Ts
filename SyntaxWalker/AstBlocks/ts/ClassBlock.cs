@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,42 +8,101 @@ namespace SyntaxWalker.AstBlocks.ts
 {
     public class TS : ILangSuport
     {
-        public IClassBlock newClassBlock(string text, IBlockDespose fileBlock, int v)
+        public static Dictionary<string, TsTypeInf> tsMap = new() { { "int", new TsTypeInf("number") },{ "float", new TsTypeInf("number")} ,
+         { "Int32",  new TsTypeInf("number") },
+         { "String",  new TsTypeInf("string") },
+         { "Int64",  new TsTypeInf("number") },
+         { "Decimal",  new TsTypeInf("number") },
+        { "long",  new TsTypeInf("number") },
+        { "Single",  new TsTypeInf("number") },
+            { "DateTimeOffset", new TsTypeInf("Date")},
+            { "DateTime", new TsTypeInf("Date")}
+        };
+
+
+
+        public IClassBlock newClassBlock(TypeDeclarationSyntax class_, SemanticModel sm, IBlockDespose fileBlock, int v)
         {
-            return new ClassBlock(text,fileBlock,v);
+            return new ClassBlock(class_,sm,fileBlock,v);
         }
+        public IFileBlock newFileBlock(string fn2)
+        {
+            return new FileBlock(null, null, 0) { fn = fn2 };
+        }
+
+        public TsTypeInf getTsName(string type)
+        {
+            var x = new TsTypeInf(type);
+            if (x.name.EndsWith('?'))
+            {
+                x.name = x.name.Substring(0, x.name.Length - 1);
+                var z = getTsName(x.name);
+                z.nullable = true;
+                return z;
+            }
+            TsTypeInf res;
+            if (tsMap.TryGetValue(type, out res))
+                return res;
+
+            return x;
+        }
+
     }
+    
     public class ClassBlock : BlockDespose, IClassBlock
     {
 
 
-        public HashSet<ITypeSymbol> usedTypes = new();
+        
+        public static string getHeaderClass(TypeDeclarationSyntax class_, SemanticModel sm)
+        {
+            string res = "";
 
-        public ClassBlock(string name, IBlockDespose parnet, int tab) : base(name, parnet, tab)
+
+            var baseClass = class_.getBaseClass(sm);
+
+            var interfaces = class_.getInterfaces(sm);
+            var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
+            
+            if (baseClass != null)
+                res += $" extends {ILangSuport.getTsName(baseClass, sm).name}";
+            if (interfaces.Count() > 0)
+                res += $" implements {interfaces.ConvertAll(x => ILangSuport.getTsName(x, sm).name).Aggregate((l, r) => $"{l},{r}")}";
+            return res;
+        }
+        public ClassBlock(TypeDeclarationSyntax class_, SemanticModel sm, IBlockDespose parnet, int tab) : base($"export class {class_.getName()}  {getHeaderClass(class_,  sm)} ", parnet, tab)
         {
             braket = true;
         }
 
-        public void fromJson(string name, string fullname, List<PropInf> args)
+        public void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
         {
             return;
         }
-
-        public BlockDespose newConstructor(List<PropInf> args)
+        public BlockDespose newConstructor(ITypeSymbol superClassSymbol, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps, SemanticModel sm)
         {
-            string clsName = this.header;
-
-
-            var argsS = args.ToList().ConvertAll(x => $"{(x.type.nullable ? "" : "required")} {(x.fromSuper?"super":"this")}.{x.name}").agregate();
-            var b = newBlock($"{clsName}({{ {argsS} }});");
+            //getTsName(sm.GetTypeInfo(x.Type).Type, sm);
+            
+            var argsS = superClassProps.ToList().ConvertAll(x => $"{x.Name.toCamel()}{(x.Type.isNullable() ? "?" : "")}:{ILangSuport.getTsName(x.Type,sm).name}");
+            argsS.AddRange( flatProps.ToList().ConvertAll(x => $"{x.Name.toCamel()}{(x.Type.isNullable() ? "?" : "")}:{ILangSuport.getTsName(x.Type, sm).name}"));
+            var b = newBlock($"constructor(args:{{ {argsS.agregate()}  }})");
             b.braket = true;
             //lines.Add(b);
+            {
+                if (superClassSymbol != null)
+                {
+                    //superClassSymbol.getProps()
+                    b.SuperCunstrocotrCall(new() { "args" });
+                }
+                foreach (var m in flatProps)
+                    b.WriteLine($"this.{m.Name.toCamel()} = args.{m.Name.toCamel()};");
+            }
             return b;
-            //return newFunction( "constructor" , args,null,false);
         }
-        public void toJson(string name,string fullname, List<PropInf> args)
+       
+        public void toJson(string name,string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
         {
-            using (var hed = this.newFunction("toJson", new List<Tuple<string, string>>() { }, name)) //TODO isclientCreatble or not 
+            using (var hed = this.newFunction("toJson", new List<IPropertySymbol>() { }, name)) //TODO isclientCreatble or not 
             {
 
 
@@ -58,9 +118,39 @@ namespace SyntaxWalker.AstBlocks.ts
 
             }
         }
-        
 
 
+        public void CreatorPolimorphic(ITypeSymbol clk, TypeDes clv, Dictionary<ITypeSymbol, TypeDes> managerMap)
+        {
+            if (clv.syntax != null && clv.isNonAbstractClass && !clv.isPolimorphicBase)
+            {
+                WriteLine($"export var {clv.syntax.getName()}Creator = (args:any)=> new {clv.syntax.getName()}(args)");
+                return;
+            }
+            
+            if (clv.syntax != null && clv.isNonAbstractClass)
+            {
+                WriteLine($"static Creator(args:any):{clv.syntax.getName()}{{const types={{");
+                WriteLine($"\"{clk}\":(args: any)=>new {clv.syntax.getName()}(args),");
+
+                foreach (var e in managerMap)
+                {
+                    if (e.Value.syntax == null)
+                        continue;
+                    var bases = e.Value.syntax.GetBaseClasses(e.Value.sm);
+
+
+                    if (bases.Contains(clk))
+                    {
+                        WriteLine($"\"{e.Key}\":(args: any)=>new {e.Key.Name}(args),");
+                    }
+                }
+                WriteLine("};");
+                WriteLine("if(!(\"$type\" in args)){\treturn new Response(args);}");
+                WriteLine("return types[args[\"$type\"]](args);");
+                WriteLine("}");
+            }
+        }
     }
 
 }
