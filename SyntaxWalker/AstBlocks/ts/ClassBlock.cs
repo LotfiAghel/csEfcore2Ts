@@ -46,9 +46,27 @@ namespace SyntaxWalker.AstBlocks.ts
 
             return x;
         }
+        public string getPath(string fn)
+        {
+            return  $"D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\{fn}.ts";
+            
+        }
 
+        public void ImportWrite(ITypeSymbol tf, FileWriter fwriter, Dictionary<ITypeSymbol, TypeDes> managerMap)
+        {
+            var cs = $"  ";
+            fwriter.WriteLine($"import {{ {tf.Name}  }} from \"Models/{managerMap[tf].fn.linuxPathStyle()}\"");
+
+
+        }
+        public void ImportBasic(FileWriter fwriter)
+        {
+            
+            fwriter.WriteLine("import  { Guid,Forg,httpGettr,List,Dictionary,ForeignKey,ForeignKey2,Rial,NpgsqlRange } from \"Models/base\";");
+
+        }
     }
-    
+
     public class ClassBlock : BlockDespose, IClassBlock
     {
 
@@ -124,7 +142,8 @@ namespace SyntaxWalker.AstBlocks.ts
         {
             if (clv.syntax != null && clv.isNonAbstractClass && !clv.isPolimorphicBase)
             {
-                WriteLine($"export var {clv.syntax.getName()}Creator = (args:any)=> new {clv.syntax.getName()}(args)");
+                WriteLine($"static Creator(args:any):{clv.syntax.getName()}{{return new {clv.syntax.getName()}(args);}}");
+                //WriteLine($"export var {clv.syntax.getName()}Creator = (args:any)=> new {clv.syntax.getName()}(args)");
                 return;
             }
             
@@ -146,10 +165,15 @@ namespace SyntaxWalker.AstBlocks.ts
                     }
                 }
                 WriteLine("};");
-                WriteLine("if(!(\"$type\" in args)){\treturn new Response(args);}");
+                WriteLine($"if(!(\"$type\" in args)){{\treturn new {clv.syntax.getName()}(args);}}");
                 WriteLine("return types[args[\"$type\"]](args);");
                 WriteLine("}");
             }
+        }
+
+        public void addField(PropertyDeclarationSyntax f, ITypeSymbol type, SemanticModel sm)
+        {
+            WriteLine($"{f.Identifier.ToString().toCamel()}{(type.isNullable() ? "?" : "")} : {ILangSuport.getTsName(type, sm).name};");
         }
     }
 

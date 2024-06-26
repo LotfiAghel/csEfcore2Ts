@@ -10,7 +10,7 @@ namespace SyntaxWalker.AstBlocks
     {
         public string header;
         public List<IBlockDespose> lines { get; set; } = new() { };
-        public int tab = 0;
+        public int tab { get; set; } = 0;
         IBlockDespose parnet;
         public bool braket = false;
         public HashSet<ITypeSymbol> usedTypes { get; set; } = new();

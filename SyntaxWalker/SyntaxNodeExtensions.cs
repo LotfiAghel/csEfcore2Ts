@@ -71,6 +71,12 @@ public static class SyntaxNodeExtensions
             res = $"<{class_.TypeParameterList.ChildNodes().ToList().ConvertAll(x => x.ToString()).Aggregate((l, r) => $"{l},{r}")}>";
         return $"{class_.Identifier.ToString()}{res}";
     }
+
+    public static string getName(this BaseTypeDeclarationSyntax class_)
+    {
+        return $"{class_.Identifier.ToString()}";
+    }
+    
     public static ITypeSymbol getBaseClass(this TypeDeclarationSyntax class_, SemanticModel sm)
     {
 

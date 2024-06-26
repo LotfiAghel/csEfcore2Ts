@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SyntaxWalker.AstBlocks;
 using SyntaxWalker.AstBlocks.ts;
 using System;
 using System.Collections.Generic;
@@ -58,9 +59,13 @@ namespace SyntaxWalker
         }
 
         IFileBlock newFileBlock(string fn2);
+        string getPath(string fn);
+        void ImportWrite(ITypeSymbol tf, FileWriter fwriter, Dictionary<ITypeSymbol, TypeDes> managerMap);
+        void ImportBasic(FileWriter fwriter);
     }
     public interface IBlockDespose: IDisposable
     {
+        public int tab { get; set; }
         List<IBlockDespose> lines { get; set; }
         HashSet<ITypeSymbol> usedTypes { get; set; }
         BlockDespose newBlock(string text);

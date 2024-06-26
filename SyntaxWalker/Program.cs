@@ -12,6 +12,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using SyntaxWalker.AstBlocks.Dart;
 using SyntaxWalker.AstBlocks.ts;
+using SyntaxWalker.AstBlocks;
 
 
 
@@ -178,22 +179,7 @@ namespace SyntaxWalker
             return "";
 
         }
-        public static string getHeaderClass(TypeDeclarationSyntax class_, SemanticModel sm)
-        {
-            string res = "";
-
-
-            var baseClass = class_.getBaseClass(sm);
-            
-            var interfaces = class_.getInterfaces(sm);
-            var memType0 = sm.GetTypeInfo(class_);//sm.GetDeclaredSymbol(class_) ;
-            
-            if (baseClass != null)
-                res += $" extends {ILangSuport.getTsName(baseClass, sm).name}";
-            if (interfaces.Count() > 0)
-                res += $" implements {interfaces.ConvertAll(x => ILangSuport.getTsName(x, sm).name).Aggregate((l, r) => $"{l},{r}")}";
-            return res;
-        }
+        
         public static PropertyDeclarationSyntax getPropWithName(TypeDeclarationSyntax class_, string name, SemanticModel sm)
         {
             //var h = class_.getBaseClass(sm);
@@ -520,7 +506,9 @@ namespace SyntaxWalker
                     }
                 }
                 var ttt = ILangSuport.getTsName(rmp2.Type, sm);
-                tt2.WriteLine($"{f.Identifier.ToString().toCamel()}{(ttt.nullable?"?":"")} : {ttt.name};");
+                
+                tt2.addField(f, rmp2.Type,sm);
+                
                 res.Add(f);
             }
             foreach (var f in frs)
@@ -863,11 +851,11 @@ namespace SyntaxWalker
                                 if (!s.Contains("Models\\Models"))
                                     continue;/**/
 
-                                //var wr = new Writer() { writer=new FileWriter("D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models2.ts") };
+
                                 var fi = new FileInfo(prjfn);
 
                                 var fn2 = tree.FilePath.Substring(fi.Directory.FullName.Length + 1, tree.FilePath.Length - fi.Directory.FullName.Length - 4);
-                                //using (var fwriter = new FileWriter($"D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\{fn2}.ts"))
+                                
                                 {
 
                                     var wr = ILangSuport.Instance.newFileBlock(fn2);
@@ -1022,16 +1010,15 @@ namespace SyntaxWalker
                                     {
                                         try
                                         {
-                                            var path = $"D:\\programing\\TestHelperTotal\\TestHelper-react2\\src\\Models\\{ff.fn}.ts";
-                                            if(File.Exists(path))
+                                            
+                                            var path = ILangSuport.Instance.getPath(ff.fn); 
+                                            if (File.Exists(path))
                                             File.WriteAllText(path, string.Empty);
                                             using (var fwriter = new FileWriter(path))
                                             {
 
-                                                fwriter.WriteLine("import  { Guid,Forg,httpGettr,List,Dictionary,ForeignKey,ForeignKey2,Rial } from \"Models/base\";");
-                                                //fwriter.WriteLine("import { IIdMapper , IdMapper} from \"Models/Basics/BaseModels/Basics/Basics\"");
-                                                //fwriter.WriteLine("import * as Deserialize from \"dcerialize\"");
-
+                                                ILangSuport.Instance.ImportBasic(fwriter);
+                                                
                                                 fwriter.WriteLine(context);
 
                                                 fwriter.WriteLine("\n\n");
@@ -1042,7 +1029,7 @@ namespace SyntaxWalker
 
                                                     if (managerMap[tf].fn != null && managerMap[tf].fn != ff.fn)
                                                     {
-                                                        ImportWrite(tf, fwriter);
+                                                        ILangSuport.Instance.ImportWrite(tf, fwriter, managerMap);
                                                     }
 
                                                 }
@@ -1074,33 +1061,7 @@ namespace SyntaxWalker
                                                         }
                                                         fwriter.Write(cl.Value.block.ToString());
 
-                                                        /*if (cl.Value.syntax != null && cl.Value.isNonAbstractClass && !cl.Value.isPolimorphicBase )
-                                                        {
-                                                            fwriter.WriteLine($"export var {cl.Value.syntax.getName()}Creator = (args:any)=> new {cl.Value.syntax.getName()}(args)");
-                                                        }
-                                                        else
-                                                        if (cl.Value.syntax != null && cl.Value.isNonAbstractClass)
-                                                        {
-                                                            fwriter.WriteLine($"export var {cl.Value.syntax.getName()}Creator = (args:any)=> {{const types={{");
-                                                            fwriter.WriteLine($"\"{cl.Key}\":(args: any)=>new {cl.Value.syntax.getName()}(args),");
-                                                            
-                                                            foreach (var e in managerMap)
-                                                            {
-                                                                if (e.Value.syntax == null)
-                                                                    continue;
-                                                                var bases = e.Value.syntax.GetBaseClasses(e.Value.sm);
-                                                                
-                                                                
-                                                                if (bases.Contains(cl.Key))
-                                                                {
-                                                                    fwriter.WriteLine($"\"{e.Key}\":(args: any)=>new {e.Key.Name}(args),"); 
-                                                                }
-                                                            }
-                                                            fwriter.WriteLine("};");
-                                                            fwriter.WriteLine("if(!(\"$type\" in args)){\treturn new Response(args);}");
-                                                            fwriter.WriteLine("return types[args[\"$type\"]](args);");
-                                                            fwriter.WriteLine("}");
-                                                        }*/
+                                                       
 
                                                     }
 
@@ -1131,7 +1092,7 @@ namespace SyntaxWalker
 
                                 foreach (var t in tt)
                                 {
-                                    ImportWrite(t.Key, fwriter);
+                                    ILangSuport.Instance.ImportWrite(t.Key, fwriter, managerMap);
                                 }
 
 
@@ -1140,7 +1101,7 @@ namespace SyntaxWalker
                                 foreach (var t in tt)
                                 {
                                     var ss = t.Value.keyTypeName!=null ? ILangSuport.Instance.getTsName(t.Value.keyTypeName).name:"number";
-                                    fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}Creator);");
+                                    fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}.Creator);");
                                 }
                                 fwriter.WriteLine("}");
                                 fwriter.WriteLine("export var oldManager=new Manager()");
@@ -1155,7 +1116,7 @@ namespace SyntaxWalker
                             var ress = getContext(project, compilation);
                             var tt = managerMap.Where(x => ress.Contains(x.Key));
                             foreach (var t in tt)
-                                ImportWrite(t.Key, fwriter);
+                                ILangSuport.Instance.ImportWrite(t.Key, fwriter, managerMap);
 
 
                             fwriter.WriteLine("\n\n");
@@ -1165,7 +1126,7 @@ namespace SyntaxWalker
                             foreach (var t in tt)
                             {
                                 var ss = t.Value.keyTypeName != null ? ILangSuport.Instance.getTsName(t.Value.keyTypeName).name : "number";
-                                fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}Creator);");
+                                fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}.Creator);");
                             }
                             fwriter.WriteLine("}");
                             fwriter.WriteLine("export var manager=new Manager()");
@@ -1178,67 +1139,9 @@ namespace SyntaxWalker
                     }
 
             }
-            var pw = new ProjectWriter($"D:\\programing\\TestHelperTotal\\TestHelper-react2\\", "ts");
-            for (int i = 0; i < 100; ++i)
-            {
-                ILangSuport.Instance = new TS();
-                var fls = new List<Regex>();
-                //D:\programing\TestHelperTotal\TestHelper-react2\src\Models\Basics\BaseModels\Basics\Basics.ts
-                fls.Add(new Regex(@"Basics/BaseModels/Basics/Basics"));
-                //fls.Add(new Regex(@"Basics/BaseModels/*"));
-                fls.Add(new Regex(@"old_testhelper/Models/Models/*"));
-                fls.Add(new Regex(@"old_testhelper/ViewGeneratorBase/[A-Za-z]*"));
-
-                foreach (var ff in fns)
-                    if (ff.lines.Count > 1 && fls.Any(x => x.Match(ff.fn).Success))
-                    {
-                        using (var fwriter = pw.getFile($"src\\Models\\{ff.fn}"))
-                        {
-
-                            fwriter.WriteHeader();
-                            //fwriter.WriteLine("import * as Deserialize from 'dcerialize'");
-
-
-                            foreach (var t in ff.usedTypes)
-                            {
-                                if (!managerMap.ContainsKey(t))
-                                    continue;
-                                if (managerMap[t].fn != ff.fn)
-                                {
-                                    fwriter.WriteLine($"import {{ {t} }} from \"Models/{managerMap[t].fn.linuxPathStyle()}\"");
-                                    //fwriter.WriteImport($"import {{ {t} }} from \"Models/{linuxPathStyle(managerMap[t].fn)}\"");
-                                }
-
-                            }
-                            fwriter.WriteLine("\n\n");
-                            foreach (var t in ff.usedTypes)
-                            {
-                                if (!managerMap.ContainsKey(t))
-                                    continue;
-                                if (managerMap[t].isResource)
-                                    fwriter.WriteLine($"import {{ {t.Name}Manager }} from \"Models/managers\"");
-
-                            }
-                            fwriter.WriteLine("\n\n");
-                            foreach (var l in ff.lines)
-                                fwriter.WriteLine(l.ToString());
-
-                            //Deserialize.RuntimeTypingSetTypeString(EntityList<CoachType>, "Models.EntityList<Coach>");
-
-                            fwriter.Flush();
-                        }
-                    }
-
-            }
-
+  
         }
-        public static void ImportWrite(ITypeSymbol tf, FileWriter fwriter)
-        {
-            var cs = $" , {tf.Name}Creator ";
-            fwriter.WriteLine($"import {{ {tf.Name}  {(managerMap[tf].isNonAbstractClass ? cs : "")}}} from \"Models/{managerMap[tf].fn.linuxPathStyle()}\"");
-
-            
-        }
+        
         public static List<ITypeSymbol> getContext(Project project, Compilation compilation)
         {
             var res = new List<ITypeSymbol>();

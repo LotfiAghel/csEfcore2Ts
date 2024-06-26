@@ -71,7 +71,7 @@ namespace SyntaxWalker.AstBlocks.ts
 
         public override IEnumBlock newEnum(EnumDeclarationSyntax class_, SemanticModel sm)
         {
-            var z = new EnumBlock();// newBlock($"export enum {class_.Identifier.ToString()} ");
+            var z = new EnumBlock($"export enum {class_.getName()} ", this, tab + 1);
             lines.Add(z);
             return z;
 

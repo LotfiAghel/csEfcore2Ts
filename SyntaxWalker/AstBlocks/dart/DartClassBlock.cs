@@ -10,16 +10,23 @@ namespace SyntaxWalker.AstBlocks.Dart
 {
     public class Dart : ILangSuport
     {
-        public static Dictionary<string, TsTypeInf> tsMap = new() { { "int", new TsTypeInf("int") },{ "float", new TsTypeInf("float")} ,
+        public static Dictionary<string, TsTypeInf> tsMap = new() { { "int", new TsTypeInf("int") },{ "float", new TsTypeInf("Float")} ,
          { "Int32",  new TsTypeInf("int") },
-         { "String",  new TsTypeInf("string") },
+         { "string",  new TsTypeInf("String") },
+         { "Boolean",  new TsTypeInf("bool") },
+         
          { "Int64",  new TsTypeInf("int") },
          { "Decimal",  new TsTypeInf("float") },
         { "long",  new TsTypeInf("int") },
         { "Single",  new TsTypeInf("int") },
-            { "DateTimeOffset", new TsTypeInf("Date")},
-            { "DateTime", new TsTypeInf("Date")}
+            { "DateTimeOffset", new TsTypeInf("DateTime")},
+            { "DateTime", new TsTypeInf("DateTime")}
         };
+       
+        public string getPath(string fn)
+        {
+            return $"D:\\programing\\TestHelperTotal\\testhelper-flutter\\lib\\generated_models\\{fn}.dart";
+        }
 
         public TsTypeInf getTsName(string type)
         {
@@ -46,6 +53,19 @@ namespace SyntaxWalker.AstBlocks.Dart
         public IFileBlock newFileBlock(string fn2)
         {
             return new DartFileBlock(null, null, 0) { fn = fn2 };
+        }
+
+        public void ImportBasic(FileWriter fwriter)
+        {
+            fwriter.WriteLine("import 'package:TestHelper/basics/basics.dart';");
+        }
+        public void ImportWrite(ITypeSymbol tf, FileWriter fwriter, Dictionary<ITypeSymbol, TypeDes> managerMap)
+        {
+            var cs = $"  ";
+            fwriter.WriteLine($"import 'package:TestHelper/Models/{managerMap[tf].fn.linuxPathStyle()}.dart';");
+
+
+
         }
 
         
@@ -104,6 +124,10 @@ namespace SyntaxWalker.AstBlocks.Dart
             return b;
             //return newFunction( "constructor" , args,null,false);
         }
+        public void addField(PropertyDeclarationSyntax f, ITypeSymbol type, SemanticModel sm)
+        {
+            WriteLine($"{ILangSuport.getTsName(type,sm).name} {(type.isNullable() ? "?" : "")}  {f.Identifier.ToString().toCamel()};");
+        }
         public static Dictionary<string, string> map=new Dictionary<string, string>() { 
             { nameof(DateTime), "DateTime.parse" },
             { nameof(Int32), "" },
@@ -112,12 +136,12 @@ namespace SyntaxWalker.AstBlocks.Dart
         public string handleFromJson(ITypeSymbol type)
         {
             if (!map.ContainsKey(type.Name))
-                return $"{type.Name}.fromJson";
+                return $"{ILangSuport.getTsName(type, sm).name}.fromJson";
             return map[type.Name];
         }
         public static Dictionary<string, string> map2 = new Dictionary<string, string>() {
             { nameof(DateTime), "DateTime.toStr" },
-            { nameof(DateOnly), "Date.toStr" },
+            { nameof(DateOnly), "DateTime.toStr" },
             { "Date", "Date.toStr" },
             { nameof(Int32), "" },
             { nameof(Boolean), "" },
@@ -126,7 +150,7 @@ namespace SyntaxWalker.AstBlocks.Dart
         public string handleToJson(ITypeSymbol type)
         {
             if (!map2.ContainsKey(type.Name))
-                return $"{type.Name}.toJson";
+                return $"{ILangSuport.getTsName(type, sm).name}.toJson";
             return map2[type.Name];
         }
         public void toJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
@@ -149,15 +173,15 @@ namespace SyntaxWalker.AstBlocks.Dart
                 if(baseClass!=null)
                     hed.WriteLine($"final data = super.toJson();");
                 else
-                    hed.WriteLine($"final map = <String, dynamic>{{}};");
-                hed.WriteLine($" data[\"\\$type\"]=\"{fullname}\"");
+                    hed.WriteLine($"final data = <String, dynamic>{{}};");
+                hed.WriteLine($" data[\"\\$type\"]=\"{fullname}\";");
                 foreach(var pr in flatProps)
                 {
                     //map["EnterDate"] = enterDate.toString();
                     if (pr.Type.isNullable())
-                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {pr.Name} != null ? {handleToJson(pr.Type)}('{pr.Name.toCamel()}') : null,");
+                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {pr.Name} != null ? {handleToJson(pr.Type)}('{pr.Name.toCamel()}') : null;");
                     else
-                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {handleToJson(pr.Type)}({pr.Name.toCamel()})");
+                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {handleToJson(pr.Type)}({pr.Name.toCamel()});");
                 }
                 hed.WriteLine($"return data;");
 
@@ -179,8 +203,9 @@ ResponseModel.fromJson(Map<String, dynamic> json):
         examPartSessionId = json['examPartSessionId'],
         super.fromJson(json);
                 */
-
-                this.WriteLine($"super.fromJson(json),");
+                var baseClass = class_.getBaseClass(sm);
+                if (baseClass!=null)
+                    this.WriteLine($"super.fromJson(json),");
                 foreach (var pr in flatProps)
                 {
                     //enterDate = json['EnterDate'] != null ? DateTime.parse(json['EnterDate']) : DateTime.now(),
