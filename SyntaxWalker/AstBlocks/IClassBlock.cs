@@ -28,6 +28,7 @@ namespace SyntaxWalker.AstBlocks
     }
     public interface IEnumBlock : ITypeBlock
     {
+        void addField(EnumMemberDeclarationSyntax mem, int rmp2);
     }
     public interface IClassBlock : ITypeBlock
     {
@@ -43,6 +44,11 @@ namespace SyntaxWalker.AstBlocks
     {
         public EnumBlock(string name, IBlockDespose parnet, int tab) : base(name, parnet, tab)
         {
+        }
+
+        public void addField(EnumMemberDeclarationSyntax mem, int rmp2)
+        {
+            WriteLine($"{mem.Identifier} = {rmp2},");
         }
 
         public override string ToString()

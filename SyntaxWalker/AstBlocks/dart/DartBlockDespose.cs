@@ -46,7 +46,7 @@ namespace SyntaxWalker.AstBlocks.Dart
 
         public override IEnumBlock newEnum(EnumDeclarationSyntax class_, SemanticModel sm)
         {
-            var z = new EnumBlock($"enum {class_.getName()}",this,tab+1);// newBlock($"export enum {class_.Identifier.ToString()} ");
+            var z = new DartEnumBlock(class_,sm,this,tab+1);// newBlock($"export enum {class_.Identifier.ToString()} ");
             lines.Add(z);
             return z;
 

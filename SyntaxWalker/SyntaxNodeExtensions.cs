@@ -64,6 +64,11 @@ public static class SyntaxNodeExtensions
 
 
     }
+
+    public static bool isAbstract(this TypeDeclarationSyntax class_){
+       return class_.Modifiers.Any(x => x.IsKind(SyntaxKind.AbstractKeyword)) || (class_ is InterfaceDeclarationSyntax)
+       ;
+    }
     public static string getName(this TypeDeclarationSyntax class_)
     {
         var res = "";
@@ -222,6 +227,18 @@ public static class SyntaxNodeExtensions
 
 
             argsS = args.Aggregate((l, r) => $"{l},{r}");
+
+        }
+        return argsS;
+    }
+    public static string agregate2(this List<string> args,string d)
+    {
+        var argsS = "";
+        if (args != null && args.Count() > 0)
+        {
+
+
+            argsS = args.Aggregate((l, r) => $"{l}{d}{r}");
 
         }
         return argsS;

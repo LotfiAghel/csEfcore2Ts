@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SyntaxWalker.AstBlocks.ts;
 using System;
@@ -25,7 +26,8 @@ namespace SyntaxWalker.AstBlocks.Dart
        
         public string getPath(string fn)
         {
-            return $"D:\\programing\\TestHelperTotal\\testhelper-flutter\\lib\\generated_models\\{fn}.dart";
+            return $"/media/lotfi/145410dd-e98c-46a9-aece-7d3001835df31/all/1.8T/programing/TestHelper/testhelper-flutter/lib/generated_models/{fn}.dart";
+            //return $"D:\\programing\\TestHelperTotal\\testhelper-flutter\\lib\\generated_models\\{fn}.dart";
         }
 
         public TsTypeInf getTsName(string type)
@@ -62,7 +64,7 @@ namespace SyntaxWalker.AstBlocks.Dart
         public void ImportWrite(ITypeSymbol tf, FileWriter fwriter, Dictionary<ITypeSymbol, TypeDes> managerMap)
         {
             var cs = $"  ";
-            fwriter.WriteLine($"import 'package:TestHelper/Models/{managerMap[tf].fn.linuxPathStyle()}.dart';");
+            fwriter.WriteLine($"import 'package:TestHelper/generated_models/{managerMap[tf].fn.linuxPathStyle()}.dart';");
 
 
 
@@ -92,8 +94,9 @@ namespace SyntaxWalker.AstBlocks.Dart
                 res += $" implements {interfaces.ConvertAll(x => ILangSuport.getTsName(x, sm).name).Aggregate((l, r) => $"{l},{r}")}";
             return res;
         }
-        public DartClassBlock(TypeDeclarationSyntax class_, SemanticModel sm, IBlockDespose parnet, int tab) : base($"class {class_.getName()}  {getHeaderClass(class_,  sm)} ", parnet, tab)
+        public DartClassBlock(TypeDeclarationSyntax class_, SemanticModel sm, IBlockDespose parnet, int tab) : base($"{(class_.isAbstract()?"abstract":"")} class {class_.getName()}  {getHeaderClass(class_,  sm)} ", parnet, tab)
         {
+            var isAbstract = class_.Modifiers.Any(x => x.IsKind(SyntaxKind.AbstractKeyword));
             this.class_ = class_;
             this.sm = sm;
             braket = true;
@@ -204,19 +207,21 @@ ResponseModel.fromJson(Map<String, dynamic> json):
         super.fromJson(json);
                 */
                 var baseClass = class_.getBaseClass(sm);
+                var res=new List<string>();
                 if (baseClass!=null)
-                    this.WriteLine($"super.fromJson(json),");
+                    res.Add($"super.fromJson(json)");
                 foreach (var pr in flatProps)
                 {
-                    //enterDate = json['EnterDate'] != null ? DateTime.parse(json['EnterDate']) : DateTime.now(),
+                    
                     if (pr.Type.isNullable())
                     {
                         var s = (pr.Type as INamedTypeSymbol).TypeArguments.FirstOrDefault();
-                        this.WriteLine($"{pr.Name.toCamel()} = json['{pr.Name.toCamel()}'] != null ? {handleFromJson(s)}(json['{pr.Name.toCamel()}']) : null,");
+                        res.Add($"{pr.Name.toCamel()} = json['{pr.Name.toCamel()}'] != null ? {handleFromJson(s)}(json['{pr.Name.toCamel()}']) : null");
                     }
                     else
-                        this.WriteLine($"{pr.Name.toCamel()} = {handleFromJson(pr.Type)}(json['{pr.Name.toCamel()}']),");
+                        res.Add($"{pr.Name.toCamel()} = {handleFromJson(pr.Type)}(json['{pr.Name.toCamel()}'])");
                 }
+                this.WriteLine(res.agregate2(",\n"));
                 this.WriteLine($";");
 
             }
@@ -227,7 +232,7 @@ ResponseModel.fromJson(Map<String, dynamic> json):
         {
             if (clv.syntax != null && clv.isNonAbstractClass && !clv.isPolimorphicBase)
             {
-                WriteLine($"static {clv.syntax.getName()} createFromJson(Map<String, dynamic> json) {{\r\n    String type = json[\"\\$type\"];\r\n    return creators[type]!(json);\r\n  }}");
+                WriteLine($"static {clv.syntax.getName()} createFromJson(Map<String, dynamic> json) {{\r\n    String type = json[\"\\$type\"];\r\n    return {clv.syntax.getName()}.fromJson(json);\r\n  }}");
                 return;
             }
 
@@ -250,7 +255,7 @@ ResponseModel.fromJson(Map<String, dynamic> json):
                     }
                 }
                 WriteLine("};");
-                WriteLine($"if(!(\"$type\" in args)){{\n\treturn  {clv.syntax.getName()}.fromJson(args);}}");
+                WriteLine($"if(!(\"$type\" in args)){{\n\treturn  creators[type]!(json);}}");
                 WriteLine("return types[args[\"$type\"]](args);");
                 WriteLine("}");
             }
