@@ -135,6 +135,9 @@ namespace SyntaxWalker.AstBlocks.Dart
             { nameof(DateTime), "DateTime.parse" },
             { nameof(Int32), "" },
             { nameof(String), "" },
+            { nameof(Boolean), "" },
+            { "bool", "" },
+            { nameof(Guid), "" },
         };
         public string handleFromJson(ITypeSymbol type)
         {
@@ -149,6 +152,7 @@ namespace SyntaxWalker.AstBlocks.Dart
             { nameof(Int32), "" },
             { nameof(Boolean), "" },
             { nameof(String), "" },
+             
         };
         public string handleToJson(ITypeSymbol type)
         {
@@ -182,9 +186,9 @@ namespace SyntaxWalker.AstBlocks.Dart
                 {
                     //map["EnterDate"] = enterDate.toString();
                     if (pr.Type.isNullable())
-                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {pr.Name} != null ? {handleToJson(pr.Type)}('{pr.Name.toCamel()}') : null;");
+                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {pr.Name.toCamel()}?.toJson();");
                     else
-                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {handleToJson(pr.Type)}({pr.Name.toCamel()});");
+                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {pr.Name.toCamel()}.toJson();");
                 }
                 hed.WriteLine($"return data;");
 
@@ -192,7 +196,7 @@ namespace SyntaxWalker.AstBlocks.Dart
         }
         public void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
         {
-            this.WriteLine($"{name}.fromJson(Map<String, dynamic> json):"); //TODO isclientCreatble or not 
+            
             {
 
 
@@ -208,8 +212,7 @@ ResponseModel.fromJson(Map<String, dynamic> json):
                 */
                 var baseClass = class_.getBaseClass(sm);
                 var res=new List<string>();
-                if (baseClass!=null)
-                    res.Add($"super.fromJson(json)");
+                
                 foreach (var pr in flatProps)
                 {
                     
@@ -221,6 +224,9 @@ ResponseModel.fromJson(Map<String, dynamic> json):
                     else
                         res.Add($"{pr.Name.toCamel()} = {handleFromJson(pr.Type)}(json['{pr.Name.toCamel()}'])");
                 }
+                if (baseClass!=null)
+                    res.Add($"super.fromJson(json)");
+                this.WriteLine($"{name}.fromJson(Map<String, dynamic> json){(res.Count>0?":":"")}"); //TODO isclientCreatble or not 
                 this.WriteLine(res.agregate2(",\n"));
                 this.WriteLine($";");
 

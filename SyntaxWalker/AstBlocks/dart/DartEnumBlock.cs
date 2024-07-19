@@ -27,6 +27,32 @@ namespace SyntaxWalker.AstBlocks.Dart
             this.class_ = class_;
             this.sm = sm;
             braket = true;
+            List<string> fields=new List<string>();
+            foreach (var mem in class_.Members)
+                {
+                    //tt.WriteLine($"{mem.Identifier}");
+
+
+                    var v = mem.DescendantNodes().OfType<EqualsValueClauseSyntax>().FirstOrDefault();
+                    if (v != null)
+                    {
+                        var rmp2 = sm.GetConstantValue(v.Value);
+
+
+                        fields.Add($"{mem.Identifier}(value:{rmp2})");
+                    
+
+                    }
+                    
+                    
+                    
+
+                }
+            WriteLine($"{fields.agregate2(",\n")};");
+            WriteLine("final int value;");
+            newConstructor(null,sm);
+            WriteLine($"static {class_.getName()} fromJson(int x) {{\n return {class_.getName()}.values.where((y) => y.value == x).first;\n}}");
+            WriteLine($"int toJson() {{\n return value;\n}}");
         }
         public BlockDespose newConstructor(List<IPropertySymbol> flatProps, SemanticModel sm)
         {
@@ -36,7 +62,7 @@ namespace SyntaxWalker.AstBlocks.Dart
         }
         public void addField(PropertyDeclarationSyntax f, ITypeSymbol type, SemanticModel sm)
         {
-            WriteLine($"{ILangSuport.getTsName(type,sm).name} {(type.isNullable() ? "?" : "")}  {f.Identifier.ToString().toCamel()};");
+            
         }
      
         
@@ -62,8 +88,12 @@ namespace SyntaxWalker.AstBlocks.Dart
 
             }
         }
+        public override string ToString()
+        {
+             return base.ToString();
+        }
 
-        
+
     }
 
 }
