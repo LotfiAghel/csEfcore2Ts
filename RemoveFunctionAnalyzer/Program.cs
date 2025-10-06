@@ -13,6 +13,7 @@ namespace RemoveFunctionAnalyzer
     {
         static async Task<int> Main(string[] args)
         {
+            Console.WriteLine("Usage:");
             if (args.Length < 3)
             {
                 Console.WriteLine("Usage: RemoveFunctionAnalyzer <file-path> <function-name> <replacement-text>");
