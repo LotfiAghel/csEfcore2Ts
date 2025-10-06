@@ -70,11 +70,13 @@ namespace RemoveFunctionAnalyzer
             return 0;
         }
 
-        public static bool checkEqul(VariableDeclaratorSyntax vard,ClassDeclarationSyntax classdec)
+        public static bool checkEqul(VariableDeclaratorSyntax vard, ClassDeclarationSyntax classdec, string[] baseClassNames)
         {
             if (vard.Parent is VariableDeclarationSyntax decl && decl.Type is IdentifierNameSyntax id)
             {
-                return id.Identifier.Text == classdec.Identifier.Text;
+                string typeName = id.Identifier.Text;
+                // Remove variables declared with the removed class type or any of its base classes
+                return typeName == classdec.Identifier.Text || baseClassNames.Contains(typeName);
             }
             return false;
         }
@@ -82,56 +84,91 @@ namespace RemoveFunctionAnalyzer
         {
             SyntaxNode newRoot = root.RemoveNode(classNode, SyntaxRemoveOptions.KeepNoTrivia);
 
-                if (replacementText == "0")
+            string removedClassName = classNode.Identifier.Text;
+
+            // Extract base class names of the removed class
+            string[] baseClassNames = Array.Empty<string>();
+            if (classNode.BaseList != null)
+            {
+                baseClassNames = classNode.BaseList.Types
+                    .Select(t =>
+                    {
+                        if (t.Type is IdentifierNameSyntax id)
+                            return id.Identifier.Text;
+                        else if (t.Type is QualifiedNameSyntax qn)
+                            return qn.Right.Identifier.Text;
+                        else
+                            return null;
+                    })
+                    .Where(n => n != null)
+                    .ToArray();
+            }
+
+            if (replacementText == "0")
+            {
+                // Remove variable declarations of the removed class or its base classes
+                var variableDeclarators = newRoot.DescendantNodes()
+                    .OfType<VariableDeclaratorSyntax>()
+                    .Where(v => checkEqul(v, classNode, baseClassNames))
+                    .ToList();
+
+                foreach (var variable in variableDeclarators)
                 {
-                    // Remove variable declarations of the removed class
-                    var variableDeclarators = newRoot.DescendantNodes()
-                        .OfType<VariableDeclaratorSyntax>()
-                        .Where(v => checkEqul(v,classNode))
-                        .ToList();
+                    var statement = variable.Ancestors()
+                        .OfType<StatementSyntax>()
+                        .FirstOrDefault();
 
-                    foreach (var variable in variableDeclarators)
+                    if (statement != null)
                     {
-                        var statement = variable.Ancestors()
-                            .OfType<StatementSyntax>()
-                            .FirstOrDefault();
-
-                        if (statement != null)
-                        {
-                            newRoot = newRoot.RemoveNode(statement, SyntaxRemoveOptions.KeepNoTrivia);
-                        }
-                    }
-
-                    // Remove classes that inherit from the removed class
-                    var derivedClasses = newRoot.DescendantNodes()
-                        .OfType<ClassDeclarationSyntax>()
-                        .Where(c => c.BaseList != null &&
-                                    c.BaseList.Types.Any(t => t.Type is IdentifierNameSyntax id && id.Identifier.Text == classNode.Identifier.Text)) // Fixed comparison to use .Text
-                        .ToList();
-
-                    foreach (var derivedClass in derivedClasses)
-                    {
-                        newRoot = newRoot.RemoveNode(derivedClass, SyntaxRemoveOptions.KeepNoTrivia);
+                        newRoot = newRoot.RemoveNode(statement, SyntaxRemoveOptions.KeepNoTrivia);
                     }
                 }
-                else
-                {
-                    // Find all identifier names of the removed class
-                    var identifiers = newRoot.DescendantNodes()
-                        .OfType<IdentifierNameSyntax>()
-                        .Where(id => id.Identifier == classNode.Identifier) //TODO id.Identifier == classNode.Identifier may is not correct
-                        .ToList();
 
-                    // Replace each identifier with the replacement text as a literal expression
-                    foreach (var identifier in identifiers)
-                    {
-                        var replacementNode = SyntaxFactory.ParseExpression(replacementText)
-                            .WithTriviaFrom(identifier);
-
-                        newRoot = newRoot.ReplaceNode(identifier, replacementNode);
-                    }
+                {   //TODO remove field of any class with type classNode in this block
+                 
                 }
-                return newRoot;
+
+                // Helper function to get base type name as string
+                string GetBaseTypeName(TypeSyntax type)
+                {
+                    if (type is IdentifierNameSyntax id)
+                        return id.Identifier.Text;
+                    else if (type is QualifiedNameSyntax qn)
+                        return qn.Right.Identifier.Text;
+                    else
+                        return null;
+                }
+
+                // Remove classes that inherit from the removed class
+                var derivedClasses = newRoot.DescendantNodes()
+                    .OfType<ClassDeclarationSyntax>()
+                    .Where(c => c.BaseList != null &&
+                                c.BaseList.Types.Any(t => GetBaseTypeName(t.Type) == removedClassName))
+                    .ToList();
+
+                foreach (var derivedClass in derivedClasses)
+                {
+                    newRoot = newRoot.RemoveNode(derivedClass, SyntaxRemoveOptions.KeepNoTrivia);
+                }
+            }
+            else
+            {
+                // Find all identifier names of the removed class
+                var identifiers = newRoot.DescendantNodes()
+                    .OfType<IdentifierNameSyntax>()
+                    .Where(id => id.Identifier.Text == classNode.Identifier.Text)
+                    .ToList();
+
+                // Replace each identifier with the replacement text as a literal expression
+                foreach (var identifier in identifiers)
+                {
+                    var replacementNode = SyntaxFactory.ParseExpression(replacementText)
+                        .WithTriviaFrom(identifier);
+
+                    newRoot = newRoot.ReplaceNode(identifier, replacementNode);
+                }
+            }
+            return newRoot;
         }
         public static SyntaxNode RemoveMethodAndReplaceInvocations(SyntaxNode root, MethodDeclarationSyntax methodNode, string functionName, string replacementText)
         {
