@@ -26,6 +26,11 @@ public static class SyntaxNodeExtensions
     {
         return sym.OriginalDefinition.Name=="Nullable";
     }
+    public static ITypeSymbol getMainType(this ITypeSymbol type)
+    {
+        return (type as INamedTypeSymbol).TypeArguments.FirstOrDefault();
+    }
+    
     public static IEnumerable<IPropertySymbol> getProps(this ITypeSymbol h)
     {
 
