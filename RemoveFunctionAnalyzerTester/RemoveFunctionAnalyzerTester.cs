@@ -12,12 +12,7 @@ namespace RemoveFunctionAnalyzerTester
     [TestClass]
     public class RemoveFunctionAnalyzerTester
     {
-        [TestMethod]
-        public void SampleTest()
-        {
-            Assert.IsTrue(true);
-        }
-
+       
               
 
         [TestMethod]
