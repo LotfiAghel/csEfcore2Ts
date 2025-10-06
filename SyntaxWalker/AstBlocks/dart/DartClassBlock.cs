@@ -131,6 +131,13 @@ namespace SyntaxWalker.AstBlocks.Dart
         {
             WriteLine($"{ILangSuport.getTsName(type,sm).name} {(type.isNullable() ? "?" : "")}  {f.Identifier.ToString().toCamel()};");
         }
+        public void addFField(string name, string type,bool nullable,string defultValue)
+        {
+            if(defultValue!=null)
+                WriteLine($"{type}{(nullable ? "?" : "")}  {name} = {defultValue};");
+            else
+               WriteLine($"{type}{(nullable ? "?" : "")}  {name} ;");
+        }
         public static Dictionary<string, string> map=new Dictionary<string, string>() { 
             { nameof(DateTime), "DateTime.parse" },
             { nameof(Int32), "" },
@@ -160,7 +167,7 @@ namespace SyntaxWalker.AstBlocks.Dart
                 return $"{ILangSuport.getTsName(type, sm).name}.toJson";
             return map2[type.Name];
         }
-        public void toJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
+        public void toJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<PropertyDeclarationSyntax> flatProps)
         {
             var baseClass = class_.getBaseClass(sm);
 
@@ -184,17 +191,19 @@ namespace SyntaxWalker.AstBlocks.Dart
                 hed.WriteLine($" data[\"\\$type\"]=\"{fullname}\";");
                 foreach(var pr in flatProps)
                 {
+                    var rmp2 = sm.GetTypeInfo(pr.Type);
+                    var type=rmp2.Type;
+                    var fname=pr.Identifier.ToString().toCamel();
                     //map["EnterDate"] = enterDate.toString();
-                    if (pr.Type.isNullable())
-                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {pr.Name.toCamel()}?.toJson();");
-                    else
-                        hed.WriteLine($"data['{pr.Name.toCamel()}'] = {pr.Name.toCamel()}.toJson();");
+                    
+                    hed.WriteLine($"data['{fname}'] = {fname}{(type.isNullable() ? "?" : "")}.toJson();");
+                    
                 }
                 hed.WriteLine($"return data;");
 
             }
         }
-        public void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
+        public void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<PropertyDeclarationSyntax> flatProps)
         {
             
             {
@@ -215,14 +224,18 @@ ResponseModel.fromJson(Map<String, dynamic> json):
                 
                 foreach (var pr in flatProps)
                 {
-                    
-                    if (pr.Type.isNullable())
+                     var rmp2 = sm.GetTypeInfo(pr.Type);
+                    var type=rmp2.Type;
+                    var fname=pr.Identifier.ToString().toCamel();
+
+                    if (type.isNullable())
                     {
-                        var s = (pr.Type as INamedTypeSymbol).TypeArguments.FirstOrDefault();
-                        res.Add($"{pr.Name.toCamel()} = json['{pr.Name.toCamel()}'] != null ? {handleFromJson(s)}(json['{pr.Name.toCamel()}']) : null");
+                        //var type2=type.BaseType;
+                        var type2 = type.getMainType();
+                        res.Add($"{fname} = json['{fname}'] != null ? {handleFromJson(type2)}(json['{fname}']) : null");
                     }
                     else
-                        res.Add($"{pr.Name.toCamel()} = {handleFromJson(pr.Type)}(json['{pr.Name.toCamel()}'])");
+                        res.Add($"{fname} = {handleFromJson(type)}(json['{fname}'])");
                 }
                 if (baseClass!=null)
                     res.Add($"super.fromJson(json)");
@@ -266,6 +279,8 @@ ResponseModel.fromJson(Map<String, dynamic> json):
                 WriteLine("}");
             }
         }
+
+        
     }
 
 }

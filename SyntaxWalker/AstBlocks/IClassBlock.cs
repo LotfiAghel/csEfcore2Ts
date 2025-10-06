@@ -33,10 +33,11 @@ namespace SyntaxWalker.AstBlocks
     public interface IClassBlock : ITypeBlock
     {
         BlockDespose newConstructor(ITypeSymbol superClassSymbol, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps, SemanticModel sm);
-        void toJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps);
-        void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps);
+        void toJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<PropertyDeclarationSyntax> flatProps);
+        void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<PropertyDeclarationSyntax> flatProps);
         void CreatorPolimorphic(ITypeSymbol clk, TypeDes clv, Dictionary<ITypeSymbol, TypeDes> managerMap);
         void addField(PropertyDeclarationSyntax f, ITypeSymbol type, SemanticModel sm);
+        void addFField(string name,string type,bool nullable=false,string defultValue=null);
     }
 
 

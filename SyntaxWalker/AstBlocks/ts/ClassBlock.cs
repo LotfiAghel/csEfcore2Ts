@@ -93,7 +93,7 @@ namespace SyntaxWalker.AstBlocks.ts
             braket = true;
         }
 
-        public void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
+        public void fromJson(string name, string fullname, List<IPropertySymbol> superClassProps, List<PropertyDeclarationSyntax> flatProps)
         {
             return;
         }
@@ -118,7 +118,7 @@ namespace SyntaxWalker.AstBlocks.ts
             return b;
         }
        
-        public void toJson(string name,string fullname, List<IPropertySymbol> superClassProps, List<IPropertySymbol> flatProps)
+        public void toJson(string name,string fullname, List<IPropertySymbol> superClassProps, List<PropertyDeclarationSyntax> flatProps)
         {
             using (var hed = this.newFunction("toJson", new List<IPropertySymbol>() { }, name)) //TODO isclientCreatble or not 
             {
@@ -174,6 +174,14 @@ namespace SyntaxWalker.AstBlocks.ts
         public void addField(PropertyDeclarationSyntax f, ITypeSymbol type, SemanticModel sm)
         {
             WriteLine($"{f.Identifier.ToString().toCamel()}{(type.isNullable() ? "?" : "")} : {ILangSuport.getTsName(type, sm).name};");
+        }
+
+        public void addFField(string name, string type, bool nullable = false,string defultValue=null)
+        {
+            if(defultValue!=null)
+                WriteLine($"{name}{(nullable?"?":"")} : type = {defultValue};");
+            else
+                WriteLine($"{name}{(nullable?"?":"")} : type;");
         }
     }
 

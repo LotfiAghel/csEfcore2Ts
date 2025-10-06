@@ -380,8 +380,9 @@ namespace SyntaxWalker
                 var rmp22 = sm.GetTypeInfo(f.Value.Type);
                 var nullable = rmp2.Type.OriginalDefinition.Name == "Nullable";
                 var nullableS = nullable ? "?" : "";
+                tt2.addFField(f.Key.Identifier.ToString(), $"ForeignKey2<{rmp22.Type.Name},{ILangSuport.getTsName(rmp2.Type, sm).name}>",nullable);
                 //tt2.WriteLine($"{toCamel(f.Key.Identifier.ToString())} : {getTsName(rmp2.Type, sm)};");
-                tt2.WriteLine($"{f.Key.Identifier.ToString().toCamel()}{nullableS} : Forg<{rmp22.Type.Name},{ILangSuport.getTsName(rmp2.Type, sm).name}>;");
+                //tt2.WriteLine($"{f.Key.Identifier.ToString().toCamel()}{nullableS} : Forg<{rmp22.Type.Name},{ILangSuport.getTsName(rmp2.Type, sm).name}>;");
                 res.Add(f.Key);
                 //addOrUpdateManager(sm.GetDeclaredSymbol(class_), keyType: rmp2.Type);
             }
@@ -588,8 +589,9 @@ namespace SyntaxWalker
 
                 tt2.newConstructor(superClassSymbol, args, res, sm);
                 //var zzz=addOrUpdateManager(sm.GetDeclaredSymbol(class_));
-                tt2.toJson(class_.getName(), sm.GetDeclaredSymbol(class_).ToString(), args, res);
-                tt2.fromJson(class_.getName(), sm.GetDeclaredSymbol(class_).ToString(), args, res);
+                var props=getSadeProp(class_, sm);
+                tt2.toJson(class_.getName(), sm.GetDeclaredSymbol(class_).ToString(), args, props);
+                tt2.fromJson(class_.getName(), sm.GetDeclaredSymbol(class_).ToString(), args, props);
                 //if (tt2 is IClassBlock cb)
                 //    tt2.CreatorPolimorphic(sm.GetDeclaredSymbol(class_), managerMap[sm.GetDeclaredSymbol(class_)], managerMap);
                 //tt2.CreatorPolimorphic(sm.GetDeclaredSymbol(class_), zzz,managerMap);
@@ -985,27 +987,57 @@ namespace SyntaxWalker
                         }
                         {
                             var path22 = ILangSuport.Instance.getPath("managers"); 
+                            var project = solution.Projects.First(x => x.Name == "Data");
+                            var compilation = comp[project];// await project.GetCompilationAsync();
+                            var context = getContext0(project, compilation);
+                            var wr = ILangSuport.Instance.newFileBlock("manager");
+                            var mngerClass=wr.newClass(context.Item1,context.Item2);
                             using (var fwriter = new FileWriter(path22))
                         {
                             fwriter.WriteLine("import { Guid, Forg,httpGettr } from \"./base\";");
                             fwriter.WriteLine("import { IEntityManager,EntityManager } from \"./baseManagers\";");
                             fwriter.WriteLine("\n\n");
-                            var project = solution.Projects.First(x => x.Name == "Data");
-                            var compilation = comp[project];// await project.GetCompilationAsync();
-                            var ress = getContext(project, compilation);
-                            var tt = managerMap.Where(x => ress.Contains(x.Key));
+                            
+                            /*var tt = managerMap.Where(x => ress.Contains(x.Key));
                             foreach (var t in tt)
-                                ILangSuport.Instance.ImportWrite(t.Key, fwriter, managerMap);
+                                ILangSuport.Instance.ImportWrite(t.Key, fwriter, managerMap);*/
 
 
                             fwriter.WriteLine("\n\n");
                            
                             fwriter.WriteLine("\n\n");
-                            fwriter.WriteLine("class Manager{");
-                            foreach (var t in tt)
+                            //fwriter.WriteLine("class Manager{");
+                            /*foreach (var t in tt)
                             {
+                                
                                 var ss = t.Value.keyTypeName != null ? ILangSuport.Instance.getTsName(t.Value.keyTypeName).name : "number";
-                                fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}.Creator);");
+                                //fwriter.WriteLine($"   {t.Key.Name}Manager: EntityManager<{t.Key.Name},{ss}> =new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}.Creator);");
+                                mngerClass.addFField($"{t.Key.Name}Manager",$"EntityManager<{t.Key.Name},{ss}>",false,$"new EntityManager<{t.Key.Name},{ss}>(\"{t.Key}\",{t.Key.Name}.Creator)");
+                            }*/
+                            var props = context.Item1.DescendantNodes().OfType<PropertyDeclarationSyntax>().Where(x => x.Type.Kind() == SyntaxKind.GenericName
+                            && (x.Type as GenericNameSyntax).Identifier.ToString() == "DbSet").Select(x => x.Type).OfType<GenericNameSyntax>()
+                            ;//.Select(x=> x.TypeArgumentList.Arguments.ToList()[0]);
+
+                            foreach (var pr3 in props)
+                            {
+                                
+                                var nd2 = pr3.TypeArgumentList.Arguments.ToList()[0];
+                                
+                                
+                                Console.WriteLine("dbset");
+                                var type = context.Item2.GetTypeInfo(nd2);
+                                var key2 = managerMap.Keys.Where(x => x.ToString() == type.Type.ToString()).FirstOrDefault();
+                                var t = managerMap.Where(x => x.Key.ToString() == type.Type.ToString()).FirstOrDefault();
+                                ILangSuport.Instance.ImportWrite(t.Key, fwriter, managerMap);
+                                if (key2 != null && managerMap.ContainsKey(key2)) try
+                                    {
+                                        var ss = t.Value.keyTypeName != null ? ILangSuport.Instance.getTsName(t.Value.keyTypeName).name : "number";
+                                        mngerClass.addFField($"{key2.Name}Manager",$"EntityManager<{key2.Name},{ss}>",false,$"new EntityManager<{key2.Name},{ss}>(\"{key2}\",{key2.Name}.Creator)");
+                                    }
+                                    catch
+                                    {
+
+                                    }
                             }
                             fwriter.WriteLine("}");
                             fwriter.WriteLine("export var manager=new Manager()");
@@ -1021,7 +1053,28 @@ namespace SyntaxWalker
             }
   
         }
-        
+        public static Tuple<ClassDeclarationSyntax,SemanticModel> getContext0(Project project, Compilation compilation)
+        {
+            
+            
+                
+                    foreach (var tree in compilation.SyntaxTrees)
+                    {
+                        CompilationUnitSyntax root = rootC[tree];//tree.GetCompilationUnitRoot();
+                        SemanticModel model = smC[tree];//compilation.GetSemanticModel(tree);
+                        var nameSpaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
+
+                        foreach (var namespace_ in nameSpaces)
+                        {
+                            //var DBcontext = namespace_.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(x => x.Identifier.ToString() == "DBContext");
+                            var DBcontext = root.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(x => x.GetBaseClasses(model).Any(x => x.Name == "DbContext"));
+                            if (DBcontext != null)
+                                return new(DBcontext,model);
+                        }
+                    }
+            
+            return null;
+        }
         public static List<ITypeSymbol> getContext(Project project, Compilation compilation)
         {
             var res = new List<ITypeSymbol>();
