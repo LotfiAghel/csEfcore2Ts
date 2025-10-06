@@ -5,3 +5,6 @@ SyntaxWalker/bin
 SyntaxWalker/obj
 ConsoleApp1/obj
 ConsoleApp1/bin
+CodeSafeRemover/Program.cs
+CodeSafeRemover/bin/
+CodeSafeRemover/obj/
