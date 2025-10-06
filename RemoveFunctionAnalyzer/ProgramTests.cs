@@ -29,6 +29,7 @@ class C {
         [Fact]
         public async Task RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls2()
         {
+            Console.WriteLine("run RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls2 ");
             var beforePath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
             var afterPath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/after/C.cs";
 
@@ -50,15 +51,13 @@ class C {
         [Fact]
         public async Task RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls()
         {
-            var code = @"
-class C {
-    void Foo() {}
-    void Bar() {
-        Foo();
-        Foo();
-    }
-}";
-            var tree = CSharpSyntaxTree.ParseText(code);
+            var beforePath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
+            var afterPath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/after/C.cs";
+
+            var beforeCode = System.IO.File.ReadAllText(beforePath);
+            var afterCode = System.IO.File.ReadAllText(afterPath);
+
+            var tree = CSharpSyntaxTree.ParseText(beforeCode);
             var root = await tree.GetRootAsync();
 
             var methodNode = root.DescendantNodes().OfType<MethodDeclarationSyntax>().First(m => m.Identifier.Text == "Foo");
@@ -67,23 +66,19 @@ class C {
 
             var newCode = newRoot.ToFullString();
 
-            Assert.DoesNotContain("void Foo()", newCode);
-            Assert.DoesNotContain("Foo()", newCode);
-            Assert.Contains("0;", newCode);
+            Assert.Equal(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
         [Fact]
         public async Task RemoveClassAndReplaceUsages_ReplacesUsages()
         {
-            var code = @"
-class C {}
-class D {
-    C c;
-    void M() {
-        C local = null;
-    }
-}";
-            var tree = CSharpSyntaxTree.ParseText(code);
+            var beforePath = @"tests/RemoveClassAndReplaceUsages_ReplacesUsages/before/C.cs";
+            var afterPath = @"tests/RemoveClassAndReplaceUsages_ReplacesUsages/after/C.cs";
+
+            var beforeCode = System.IO.File.ReadAllText(beforePath);
+            var afterCode = System.IO.File.ReadAllText(afterPath);
+
+            var tree = CSharpSyntaxTree.ParseText(beforeCode);
             var root = await tree.GetRootAsync();
 
             var classNode = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.Text == "C");
@@ -92,26 +87,19 @@ class D {
 
             var newCode = newRoot.ToFullString();
 
-            Assert.DoesNotContain("class C", newCode);
-            Assert.Contains("null c;", newCode);
-            Assert.Contains("null local = null;", newCode);
+            Assert.Equal(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
         [Fact]
         public async Task RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses()
         {
-            var code = @"
-class Base {}
-class Derived : Base {}
-class C {}
-class D {
-    C c;
-    Base b;
-    void M() {
-        C local = null;
-    }
-}";
-            var tree = CSharpSyntaxTree.ParseText(code);
+            var beforePath = @"tests/RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses/before/C.cs";
+            var afterPath = @"tests/RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses/after/C.cs";
+
+            var beforeCode = System.IO.File.ReadAllText(beforePath);
+            var afterCode = System.IO.File.ReadAllText(afterPath);
+
+            var tree = CSharpSyntaxTree.ParseText(beforeCode);
             var root = await tree.GetRootAsync();
 
             var classNode = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.Text == "C");
@@ -120,10 +108,7 @@ class D {
 
             var newCode = newRoot.ToFullString();
 
-            Assert.DoesNotContain("class C", newCode);
-            Assert.DoesNotContain("C c;", newCode);
-            Assert.DoesNotContain("C local = null;", newCode);
-            Assert.Contains("class Derived : Base", newCode); // Derived class unrelated to C remains
+            Assert.Equal(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
     }
 }
