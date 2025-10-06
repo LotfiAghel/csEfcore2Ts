@@ -75,7 +75,7 @@ namespace RemoveFunctionAnalyzerTester
 
              var classNode = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.Text == "C");
 
-             var newRoot = RemoveFunctionAnalyzer.Program.RemoveClassAndReplaceUsages(root, classNode, "C", "0");
+             var newRoot = RemoveFunctionAnalyzer.Program.RemoveClassAndReplaceUsages(root, classNode,  "0");
 
              var newCode = newRoot.ToFullString();
              Console.WriteLine(newCode);
@@ -97,9 +97,9 @@ namespace RemoveFunctionAnalyzerTester
              var tree = CSharpSyntaxTree.ParseText(beforeCode);
              var root = await tree.GetRootAsync();
 
-             var classNode = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.Text == "C");
+             var classNode = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.Text == "Base");
 
-             var newRoot = RemoveFunctionAnalyzer.Program.RemoveClassAndReplaceUsages(root, classNode, "C", "0");
+             var newRoot = RemoveFunctionAnalyzer.Program.RemoveClassAndReplaceUsages(root, classNode,  "0");
 
              var newCode = newRoot.ToFullString();
              Console.WriteLine(newCode);
