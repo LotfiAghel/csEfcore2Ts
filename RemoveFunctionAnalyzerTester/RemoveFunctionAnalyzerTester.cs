@@ -27,13 +27,14 @@ namespace RemoveFunctionAnalyzerTester
 
             var tree = CSharpSyntaxTree.ParseText(beforeCode);
             var root = await tree.GetRootAsync();
-
+            
             var methodNode = root.DescendantNodes().OfType<MethodDeclarationSyntax>().First(m => m.Identifier.Text == "Foo");
 
             var newRoot = RemoveFunctionAnalyzer.Program.RemoveMethodAndReplaceInvocations(root, methodNode, "Foo", "0");
 
             var newCode = newRoot.ToFullString();
-
+            
+            
             Assert.AreEqual(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
@@ -55,6 +56,7 @@ namespace RemoveFunctionAnalyzerTester
 
             var newCode = newRoot.ToFullString();
 
+            
             Assert.AreEqual(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
@@ -73,10 +75,11 @@ namespace RemoveFunctionAnalyzerTester
 
              var classNode = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.Text == "C");
 
-             var newRoot = RemoveFunctionAnalyzer.Program.RemoveClassAndReplaceUsages(root, classNode, "C", "null");
+             var newRoot = RemoveFunctionAnalyzer.Program.RemoveClassAndReplaceUsages(root, classNode, "C", "0");
 
              var newCode = newRoot.ToFullString();
-
+             Console.WriteLine(newCode);
+             Console.WriteLine(afterCode);
              Assert.AreEqual(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
          }
         
@@ -99,7 +102,8 @@ namespace RemoveFunctionAnalyzerTester
              var newRoot = RemoveFunctionAnalyzer.Program.RemoveClassAndReplaceUsages(root, classNode, "C", "0");
 
              var newCode = newRoot.ToFullString();
-
+             Console.WriteLine(newCode);
+             Console.WriteLine(afterCode);
              Assert.AreEqual(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
          }
         

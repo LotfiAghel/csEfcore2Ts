@@ -1,6 +1,5 @@
 class C {
     void Bar() {
-        0;
-        0;
+        // original method to be removed
     }
 }
