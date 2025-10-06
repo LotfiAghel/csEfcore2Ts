@@ -124,8 +124,30 @@ namespace RemoveFunctionAnalyzer
                     }
                 }
 
-                {   //TODO remove field of any class with type classNode in this block
-                 
+                // Remove fields of any class with type classNode or its base classes
+                var fieldDeclarations = newRoot.DescendantNodes()
+                    .OfType<FieldDeclarationSyntax>()
+                    .Where(field =>
+                    {
+                        var type = field.Declaration.Type;
+                        string typeName = null;
+                        if (type is IdentifierNameSyntax id)
+                            typeName = id.Identifier.Text;
+                        else if (type is QualifiedNameSyntax qn)
+                            typeName = qn.Right.Identifier.Text;
+                        return typeName == removedClassName || baseClassNames.Contains(typeName);
+                    })
+                    .ToList();
+                
+
+                
+                foreach (var field in fieldDeclarations)
+                {
+                    newRoot = newRoot.RemoveNode(field, SyntaxRemoveOptions.KeepNoTrivia);
+                }
+
+                {//TODO Remove fields of any class with type classNode or its base classes in this block
+                    
                 }
 
                 // Helper function to get base type name as string

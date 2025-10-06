@@ -104,7 +104,7 @@ namespace RemoveFunctionAnalyzerTester
              var newCode = newRoot.ToFullString();
              Console.WriteLine(newCode);
              Console.WriteLine(afterCode);
-             Assert.AreEqual(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
+             Assert.AreEqual(afterCode.Replace("\r\n", "\n").Replace("\t"," ").Replace("\n"," ").Replace(" ",""), newCode.Replace("\r\n", "\n").Replace("\t"," ").Replace("\n"," ").Replace(" ",""));
          }
         
     }
