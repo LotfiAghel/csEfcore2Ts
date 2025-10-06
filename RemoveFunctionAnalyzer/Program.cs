@@ -13,14 +13,15 @@ namespace RemoveFunctionAnalyzer
     {
         static async Task<int> Main(string[] args)
         {
-            if (args.Length < 2)
+            if (args.Length < 3)
             {
-                Console.WriteLine("Usage: RemoveFunctionAnalyzer <file-path> <function-name>");
+                Console.WriteLine("Usage: RemoveFunctionAnalyzer <file-path> <function-name> <replacement-text>");
                 return 1;
             }
 
             var filePath = args[0];
             var functionName = args[1];
+            var replacementText = args[2];
 
             if (!File.Exists(filePath))
             {
@@ -44,12 +45,27 @@ namespace RemoveFunctionAnalyzer
 
             var newRoot = root.RemoveNode(methodNode, SyntaxRemoveOptions.KeepNoTrivia);
 
+            // Find all invocation expressions of the removed function
+            var invocations = newRoot.DescendantNodes()
+                .OfType<InvocationExpressionSyntax>()
+                .Where(inv => inv.Expression is IdentifierNameSyntax id && id.Identifier.Text == functionName)
+                .ToList();
+
+            // Replace each invocation with the replacement text as a literal expression
+            foreach (var invocation in invocations)
+            {
+                var replacementNode = SyntaxFactory.ParseExpression(replacementText)
+                    .WithTriviaFrom(invocation);
+
+                newRoot = newRoot.ReplaceNode(invocation, replacementNode);
+            }
+
             var newSource = newRoot.ToFullString();
 
             // Overwrite the file with the new source code
             await File.WriteAllTextAsync(filePath, newSource);
 
-            Console.WriteLine($"Function '{functionName}' removed successfully.");
+            Console.WriteLine($"Function '{functionName}' removed and invocations replaced with '{replacementText}' successfully.");
 
             return 0;
         }
