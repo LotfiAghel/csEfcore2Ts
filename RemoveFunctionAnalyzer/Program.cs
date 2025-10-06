@@ -57,7 +57,7 @@ namespace RemoveFunctionAnalyzer
             }
             else
             {
-                newRoot=RemoveClassAndReplaceUsages(root, classNode, functionName, replacementText);
+                newRoot=RemoveClassAndReplaceUsages(root, classNode, replacementText);
             }
 
             var newSource = newRoot.ToFullString();
@@ -70,7 +70,15 @@ namespace RemoveFunctionAnalyzer
             return 0;
         }
 
-        public static SyntaxNode RemoveClassAndReplaceUsages(SyntaxNode root, ClassDeclarationSyntax classNode, string functionName, string replacementText)
+        public static bool checkEqul(VariableDeclaratorSyntax vard,ClassDeclarationSyntax classdec)
+        {
+            if (vard.Parent is VariableDeclarationSyntax decl && decl.Type is IdentifierNameSyntax id)
+            {
+                return id.Identifier.Text == classdec.Identifier.Text;
+            }
+            return false;
+        }
+        public static SyntaxNode RemoveClassAndReplaceUsages(SyntaxNode root, ClassDeclarationSyntax classNode, string replacementText)
         {
             SyntaxNode newRoot = root.RemoveNode(classNode, SyntaxRemoveOptions.KeepNoTrivia);
 
@@ -79,9 +87,7 @@ namespace RemoveFunctionAnalyzer
                     // Remove variable declarations of the removed class
                     var variableDeclarators = newRoot.DescendantNodes()
                         .OfType<VariableDeclaratorSyntax>()
-                        .Where(v => v.Parent is VariableDeclarationSyntax decl &&
-                                    decl.Type is IdentifierNameSyntax id &&
-                                    id.Identifier.Text == functionName)
+                        .Where(v => checkEqul(v,classNode))
                         .ToList();
 
                     foreach (var variable in variableDeclarators)
@@ -100,7 +106,7 @@ namespace RemoveFunctionAnalyzer
                     var derivedClasses = newRoot.DescendantNodes()
                         .OfType<ClassDeclarationSyntax>()
                         .Where(c => c.BaseList != null &&
-                                    c.BaseList.Types.Any(t => t.Type is IdentifierNameSyntax id && id.Identifier.Text == functionName))
+                                    c.BaseList.Types.Any(t => t.Type is IdentifierNameSyntax id && id.Identifier.Text == classNode.Identifier.Text)) // Fixed comparison to use .Text
                         .ToList();
 
                     foreach (var derivedClass in derivedClasses)
@@ -113,7 +119,7 @@ namespace RemoveFunctionAnalyzer
                     // Find all identifier names of the removed class
                     var identifiers = newRoot.DescendantNodes()
                         .OfType<IdentifierNameSyntax>()
-                        .Where(id => id.Identifier.Text == functionName)
+                        .Where(id => id.Identifier == classNode.Identifier) //TODO id.Identifier == classNode.Identifier may is not correct
                         .ToList();
 
                     // Replace each identifier with the replacement text as a literal expression
