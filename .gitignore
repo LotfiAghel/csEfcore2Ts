@@ -10,3 +10,4 @@ CodeSafeRemover/bin/
 CodeSafeRemover/obj/
 RemoveFunctionAnalyzer/obj/
 RemoveFunctionAnalyzer/bin/
+tests/*/*/obj
