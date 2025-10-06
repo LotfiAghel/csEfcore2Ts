@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace RemoveFunctionAnalyzer
 {
-    class Program
+    public class Program
     {
         static async Task<int> Main(string[] args)
         {
@@ -133,6 +133,28 @@ namespace RemoveFunctionAnalyzer
             Console.WriteLine($"Function '{functionName}' removed and invocations replaced with '{replacementText}' successfully.");
 
             return 0;
+        }
+
+        public static SyntaxNode RemoveMethodAndReplaceInvocations(SyntaxNode root, MethodDeclarationSyntax methodNode, string functionName, string replacementText)
+        {
+            var newRoot = root.RemoveNode(methodNode, SyntaxRemoveOptions.KeepNoTrivia);
+
+            // Find all invocation expressions of the removed function
+            var invocations = newRoot.DescendantNodes()
+                .OfType<InvocationExpressionSyntax>()
+                .Where(inv => inv.Expression is IdentifierNameSyntax id && id.Identifier.Text == functionName)
+                .ToList();
+
+            // Replace each invocation with the replacement text as a literal expression
+            foreach (var invocation in invocations)
+            {
+                var replacementNode = SyntaxFactory.ParseExpression(replacementText)
+                    .WithTriviaFrom(invocation);
+
+                newRoot = newRoot.ReplaceNode(invocation, replacementNode);
+            }
+
+            return newRoot;
         }
     }
 }

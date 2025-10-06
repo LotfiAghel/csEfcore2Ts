@@ -1,23 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>RemoveFunctionAnalyzer</AssemblyName>
-    <PackageId>RemoveFunctionAnalyzer</PackageId>
+    <AssemblyName>RemoveFunctionAnalyzer-test</AssemblyName>
+    <PackageId>RemoveFunctionAnalyzer-test</PackageId>
     <Version>1.0.0</Version>
     <Authors>YourName</Authors>
     <Description>Removes a specific function (OldFunction) from your C# code via Roslyn refactoring.</Description>
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <IncludeBuildOutput>true</IncludeBuildOutput>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-  </PropertyGroup>
-
-  
+  <ItemGroup>
+    <ProjectReference Include="../RemoveFunctionAnalyzer/RemoveFunctionAnalyzer.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.3" />
@@ -31,8 +30,8 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.8.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" />
   </ItemGroup>
-<ItemGroup>
 
+  <ItemGroup>
     <PackageReference Include="Microsoft.Build.Locator" Version="1.6.10" />
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.7.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.7.0" />
