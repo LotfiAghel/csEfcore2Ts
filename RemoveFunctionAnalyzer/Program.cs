@@ -51,26 +51,27 @@ namespace RemoveFunctionAnalyzer
 
             if (methodNode != null)
             {
-                newRoot = root.RemoveNode(methodNode, SyntaxRemoveOptions.KeepNoTrivia);
-
-                // Find all invocation expressions of the removed function
-                var invocations = newRoot.DescendantNodes()
-                    .OfType<InvocationExpressionSyntax>()
-                    .Where(inv => inv.Expression is IdentifierNameSyntax id && id.Identifier.Text == functionName)
-                    .ToList();
-
-                // Replace each invocation with the replacement text as a literal expression
-                foreach (var invocation in invocations)
-                {
-                    var replacementNode = SyntaxFactory.ParseExpression(replacementText)
-                        .WithTriviaFrom(invocation);
-
-                    newRoot = newRoot.ReplaceNode(invocation, replacementNode);
-                }
+                newRoot=RemoveMethodAndReplaceInvocations(root, methodNode, functionName, replacementText);
+                
             }
             else
             {
-                newRoot = root.RemoveNode(classNode, SyntaxRemoveOptions.KeepNoTrivia);
+                newRoot=RemoveClassAndReplaceUsages(root, classNode, functionName, replacementText);
+            }
+
+            var newSource = newRoot.ToFullString();
+
+            // Overwrite the file with the new source code
+            await File.WriteAllTextAsync(filePath, newSource);
+
+            Console.WriteLine($"Function '{functionName}' removed and invocations replaced with '{replacementText}' successfully.");
+
+            return 0;
+        }
+
+        public static SyntaxNode RemoveClassAndReplaceUsages(SyntaxNode root, ClassDeclarationSyntax classNode, string functionName, string replacementText)
+        {
+            SyntaxNode newRoot = root.RemoveNode(classNode, SyntaxRemoveOptions.KeepNoTrivia);
 
                 if (replacementText == "0")
                 {
@@ -123,24 +124,11 @@ namespace RemoveFunctionAnalyzer
                         newRoot = newRoot.ReplaceNode(identifier, replacementNode);
                     }
                 }
-            }
-
-            var newSource = newRoot.ToFullString();
-
-            // Overwrite the file with the new source code
-            await File.WriteAllTextAsync(filePath, newSource);
-
-            Console.WriteLine($"Function '{functionName}' removed and invocations replaced with '{replacementText}' successfully.");
-
-            return 0;
-        }
-
-        public static SyntaxNode RemoveClassAndReplaceUsages(SyntaxNode root, MethodDeclarationSyntax methodNode, string functionName, string replacementText)
-        {
-            //TODO
+                return newRoot;
         }
         public static SyntaxNode RemoveMethodAndReplaceInvocations(SyntaxNode root, MethodDeclarationSyntax methodNode, string functionName, string replacementText)
         {
+            
             var newRoot = root.RemoveNode(methodNode, SyntaxRemoveOptions.KeepNoTrivia);
 
             // Find all invocation expressions of the removed function
