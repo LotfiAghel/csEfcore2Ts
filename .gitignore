@@ -11,3 +11,5 @@ CodeSafeRemover/obj/
 RemoveFunctionAnalyzer/obj/
 RemoveFunctionAnalyzer/bin/
 tests/*/*/obj
+RemoveFunctionAnalyzer-test/bin/
+RemoveFunctionAnalyzer-test/obj/
