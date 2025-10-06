@@ -8,3 +8,5 @@ ConsoleApp1/bin
 CodeSafeRemover/Program.cs
 CodeSafeRemover/bin/
 CodeSafeRemover/obj/
+RemoveFunctionAnalyzer/obj/
+RemoveFunctionAnalyzer/bin/
