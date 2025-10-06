@@ -13,3 +13,6 @@ RemoveFunctionAnalyzer/bin/
 tests/*/*/obj
 RemoveFunctionAnalyzer-test/bin/
 RemoveFunctionAnalyzer-test/obj/
+.idea/
+RemoveFunctionAnalyzerTester/bin/
+RemoveFunctionAnalyzerTester/obj/

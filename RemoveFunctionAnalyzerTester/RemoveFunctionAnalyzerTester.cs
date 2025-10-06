@@ -1,19 +1,26 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Xunit;
-using System.Linq;
+using RemoveFunctionAnalyzer;
 
-
-namespace RemoveFunctionAnalyzerTest.Tests
+namespace RemoveFunctionAnalyzerTester
 {
-    public class ProgramTests
+    [TestClass]
+    public class RemoveFunctionAnalyzerTester
     {
-        
+        [TestMethod]
+        public void SampleTest()
+        {
+            Assert.IsTrue(true);
+        }
 
-        [Fact]
+              
+
+        [TestMethod]
         public async Task RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls2()
         {
             Console.WriteLine("run RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls2 ");
@@ -35,7 +42,7 @@ namespace RemoveFunctionAnalyzerTest.Tests
             Assert.Equal(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
-        [Fact]
+        [TestMethod]
         public async Task RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls()
         {
             var beforePath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
@@ -56,7 +63,7 @@ namespace RemoveFunctionAnalyzerTest.Tests
             Assert.Equal(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
-        [Fact]
+        [TestMethod]
         public async Task RemoveClassAndReplaceUsages_ReplacesUsages()
         {
             var beforePath = @"tests/RemoveClassAndReplaceUsages_ReplacesUsages/before/C.cs";
@@ -77,7 +84,7 @@ namespace RemoveFunctionAnalyzerTest.Tests
             Assert.Equal(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
-        [Fact]
+        [TestMethod]
         public async Task RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses()
         {
             var beforePath = @"tests/RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses/before/C.cs";
