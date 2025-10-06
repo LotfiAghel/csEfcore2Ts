@@ -135,6 +135,10 @@ namespace RemoveFunctionAnalyzer
             return 0;
         }
 
+        public static SyntaxNode RemoveClassAndReplaceUsages(SyntaxNode root, MethodDeclarationSyntax methodNode, string functionName, string replacementText)
+        {
+            //TODO
+        }
         public static SyntaxNode RemoveMethodAndReplaceInvocations(SyntaxNode root, MethodDeclarationSyntax methodNode, string functionName, string replacementText)
         {
             var newRoot = root.RemoveNode(methodNode, SyntaxRemoveOptions.KeepNoTrivia);
