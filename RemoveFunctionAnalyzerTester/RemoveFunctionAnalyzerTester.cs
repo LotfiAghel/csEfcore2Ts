@@ -24,8 +24,8 @@ namespace RemoveFunctionAnalyzerTester
         public async Task RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls2()
         {
             Console.WriteLine("run RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls2 ");
-            var beforePath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
-            var afterPath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/after/C.cs";
+            var beforePath = @"../../../../tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
+            var afterPath = @"../../../../tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/after/C.cs";
 
             var beforeCode = System.IO.File.ReadAllText(beforePath);
             var afterCode = System.IO.File.ReadAllText(afterPath);
@@ -45,8 +45,8 @@ namespace RemoveFunctionAnalyzerTester
         [TestMethod]
         public async Task RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls()
         {
-            var beforePath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
-            var afterPath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/after/C.cs";
+            var beforePath = @"../../../../tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
+            var afterPath = @"../../../../tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/after/C.cs";
 
             var beforeCode = System.IO.File.ReadAllText(beforePath);
             var afterCode = System.IO.File.ReadAllText(afterPath);
@@ -67,8 +67,8 @@ namespace RemoveFunctionAnalyzerTester
          [TestMethod]
          public async Task RemoveClassAndReplaceUsages_ReplacesUsages()
          {
-             var beforePath = @"tests/RemoveClassAndReplaceUsages_ReplacesUsages/before/C.cs";
-             var afterPath = @"tests/RemoveClassAndReplaceUsages_ReplacesUsages/after/C.cs";
+             var beforePath = @"../../../../tests/RemoveClassAndReplaceUsages_ReplacesUsages/before/C.cs";
+             var afterPath = @"../../../../tests/RemoveClassAndReplaceUsages_ReplacesUsages/after/C.cs";
 
              var beforeCode = System.IO.File.ReadAllText(beforePath);
              var afterCode = System.IO.File.ReadAllText(afterPath);
@@ -90,8 +90,8 @@ namespace RemoveFunctionAnalyzerTester
          [TestMethod]
          public async Task RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses()
          {
-             var beforePath = @"tests/RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses/before/C.cs";
-             var afterPath = @"tests/RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses/after/C.cs";
+             var beforePath = @"../../../../tests/RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses/before/C.cs";
+             var afterPath = @"../../../../tests/RemoveClassAndReplaceUsages_WithZero_RemovesDeclarationsAndDerivedClasses/after/C.cs";
 
              var beforeCode = System.IO.File.ReadAllText(beforePath);
              var afterCode = System.IO.File.ReadAllText(afterPath);
