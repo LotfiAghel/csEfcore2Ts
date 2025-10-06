@@ -146,8 +146,25 @@ namespace RemoveFunctionAnalyzer
                     newRoot = newRoot.RemoveNode(field, SyntaxRemoveOptions.KeepNoTrivia);
                 }
 
-                {//TODO Remove fields of any class with type classNode or its base classes in this block
-                    
+                {//TODO Remove proprtis of any class with type classNode or its base classes in this block
+                    var propertyDeclarations = newRoot.DescendantNodes()
+                        .OfType<PropertyDeclarationSyntax>()
+                        .Where(prop =>
+                        {
+                            var type = prop.Type;
+                            string typeName = null;
+                            if (type is IdentifierNameSyntax id)
+                                typeName = id.Identifier.Text;
+                            else if (type is QualifiedNameSyntax qn)
+                                typeName = qn.Right.Identifier.Text;
+                            return typeName == removedClassName || baseClassNames.Contains(typeName);
+                        })
+                        .ToList();
+
+                    foreach (var property in propertyDeclarations)
+                    {
+                        newRoot = newRoot.RemoveNode(property, SyntaxRemoveOptions.KeepNoTrivia);
+                    }
                 }
 
                 // Helper function to get base type name as string
@@ -170,6 +187,7 @@ namespace RemoveFunctionAnalyzer
 
                 foreach (var derivedClass in derivedClasses)
                 {
+                    newRoot=RemoveClassAndReplaceUsages(newRoot, derivedClass, "0");
                     newRoot = newRoot.RemoveNode(derivedClass, SyntaxRemoveOptions.KeepNoTrivia);
                 }
             }

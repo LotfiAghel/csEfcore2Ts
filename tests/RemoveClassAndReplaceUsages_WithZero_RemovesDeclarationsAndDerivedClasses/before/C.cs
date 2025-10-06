@@ -4,7 +4,8 @@ class C {}
 class D {
     C c;
     Base b;
-    Base tt{ get; set; }
+    Base tt { get; set; }
+    Derived dd { get; set; }
     void M() {
         C local = null;
     }
