@@ -16,6 +16,17 @@
             "stopAtEntry": false
         },
         {
+            "name": ".NET Core Launch (CodeSafeRemover)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build3",
+            "program": "${workspaceFolder}/CodeSafeRemover/bin/Debug/net7.0/CodeSafeRemover.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/CodeSafeRemover",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
             "name": ".NET Core Attach",
             "type": "coreclr",
             "request": "attach"
