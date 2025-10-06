@@ -37,27 +37,55 @@ namespace RemoveFunctionAnalyzer
                 .OfType<MethodDeclarationSyntax>()
                 .FirstOrDefault(m => m.Identifier.Text == functionName);
 
-            if (methodNode == null)
+            var classNode = root.DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.Text == functionName);
+
+            if (methodNode == null && classNode == null)
             {
-                Console.WriteLine($"Function '{functionName}' not found in file.");
+                Console.WriteLine($"Function or class '{functionName}' not found in file.");
                 return 1;
             }
 
-            var newRoot = root.RemoveNode(methodNode, SyntaxRemoveOptions.KeepNoTrivia);
+            SyntaxNode newRoot;
 
-            // Find all invocation expressions of the removed function
-            var invocations = newRoot.DescendantNodes()
-                .OfType<InvocationExpressionSyntax>()
-                .Where(inv => inv.Expression is IdentifierNameSyntax id && id.Identifier.Text == functionName)
-                .ToList();
-
-            // Replace each invocation with the replacement text as a literal expression
-            foreach (var invocation in invocations)
+            if (methodNode != null)
             {
-                var replacementNode = SyntaxFactory.ParseExpression(replacementText)
-                    .WithTriviaFrom(invocation);
+                newRoot = root.RemoveNode(methodNode, SyntaxRemoveOptions.KeepNoTrivia);
 
-                newRoot = newRoot.ReplaceNode(invocation, replacementNode);
+                // Find all invocation expressions of the removed function
+                var invocations = newRoot.DescendantNodes()
+                    .OfType<InvocationExpressionSyntax>()
+                    .Where(inv => inv.Expression is IdentifierNameSyntax id && id.Identifier.Text == functionName)
+                    .ToList();
+
+                // Replace each invocation with the replacement text as a literal expression
+                foreach (var invocation in invocations)
+                {
+                    var replacementNode = SyntaxFactory.ParseExpression(replacementText)
+                        .WithTriviaFrom(invocation);
+
+                    newRoot = newRoot.ReplaceNode(invocation, replacementNode);
+                }
+            }
+            else
+            {
+                newRoot = root.RemoveNode(classNode, SyntaxRemoveOptions.KeepNoTrivia);
+
+                // Find all identifier names of the removed class
+                var identifiers = newRoot.DescendantNodes()
+                    .OfType<IdentifierNameSyntax>()
+                    .Where(id => id.Identifier.Text == functionName)
+                    .ToList();
+
+                // Replace each identifier with the replacement text as a literal expression
+                foreach (var identifier in identifiers)
+                {
+                    var replacementNode = SyntaxFactory.ParseExpression(replacementText)
+                        .WithTriviaFrom(identifier);
+
+                    newRoot = newRoot.ReplaceNode(identifier, replacementNode);
+                }
             }
 
             var newSource = newRoot.ToFullString();
