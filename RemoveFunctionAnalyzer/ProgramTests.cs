@@ -29,7 +29,13 @@ class C {
         [Fact]
         public async Task RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls2()
         {
-            var tree = CSharpSyntaxTree.ParseText(BeforeCode);
+            var beforePath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/before/C.cs";
+            var afterPath = @"tests/RemoveMethodAndReplaceInvocations_RemovesMethodAndReplacesCalls/after/C.cs";
+
+            var beforeCode = System.IO.File.ReadAllText(beforePath);
+            var afterCode = System.IO.File.ReadAllText(afterPath);
+
+            var tree = CSharpSyntaxTree.ParseText(beforeCode);
             var root = await tree.GetRootAsync();
 
             var methodNode = root.DescendantNodes().OfType<MethodDeclarationSyntax>().First(m => m.Identifier.Text == "Foo");
@@ -38,7 +44,7 @@ class C {
 
             var newCode = newRoot.ToFullString();
 
-            Assert.Equal(AfterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
+            Assert.Equal(afterCode.Replace("\r\n", "\n"), newCode.Replace("\r\n", "\n"));
         }
 
         [Fact]
